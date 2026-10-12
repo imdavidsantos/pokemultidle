@@ -1,0 +1,20 @@
+.pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.pane--focused { border-color: var(--accent); }
+
+/* Em modo foco, as outras contas ficam invisíveis mas continuam rodando (e tocando som, se não estiverem mutadas) */
+.pane--hidden {
+  position: absolute;
+  inset: 6px;
+  visibility: hidden;
+  pointer-events: none;
+}

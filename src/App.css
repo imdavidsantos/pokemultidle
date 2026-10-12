@@ -1,0 +1,15 @@
+.app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.app__grid {
+  position: relative; /* painéis ocultos (modo foco) ficam sobrepostos, mas continuam rodando */
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  gap: 6px;
+  padding: 6px;
+}
