@@ -1,7 +1,7 @@
 {
   "name": "pokemultidle",
   "productName": "Pokemultidle",
-  "version": "",
+  "version": "3.0.0",
   "description": "Gerenciador de até 4 contas do PokeIdle em uma única janela",
   "main": "electron/main.js",
   "scripts": {
@@ -10,9 +10,6 @@
     "start": "vite build && electron .",
     "dist": "vite build && electron-builder"
   },
-  "publish": [
-    { "provider": "github", "owner": "imdavidsantos", "repo": "pokemultidle" }
-  ],
   "dependencies": {
     "electron-updater": "^6.8.9",
     "react": "^18.3.1",
@@ -30,11 +27,17 @@
   "build": {
     "appId": "com.pokemultidle.v3",
     "productName": "Pokemultidle",
+    "directories": {
+      "output": "release"
+    },
     "files": [
       "dist/**/*",
       "electron/**/*",
       "build/icon.png",
       "package.json"
+    ],
+    "publish": [
+      { "provider": "github", "owner": "imdavidsantos", "repo": "pokemultidle" }
     ],
     "win": {
       "target": "nsis",

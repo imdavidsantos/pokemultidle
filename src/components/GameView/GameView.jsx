@@ -20,28 +20,29 @@ const REAPPLY_EVENTS = [
 const GameView = forwardRef(function GameView({ slot, muted, volume, zoom, boost, focused }, ref) {
   const boxRef = useRef(null);
   const webviewRef = useRef(null);
-  const domReadyRef = useRef(false);
   const settingsRef = useRef({ muted, volume, zoom });
   const [panel, setPanel] = useState({ width: 0, height: 0 });
 
   settingsRef.current = { muted, volume, zoom };
 
   useImperativeHandle(ref, () => ({
-    reload: () => webviewRef.current?.reload?.(),
+    reload: () => {
+      try {
+        webviewRef.current?.reload();
+      } catch (err) {
+        console.warn('Webview ainda não está pronto para recarregar:', err);
+      }
+    },
   }));
 
   // Aplica mute, zoom e volume no que estiver carregado agora
   const applySettings = useCallback(() => {
     const wv = webviewRef.current;
-    if (!wv || !domReadyRef.current) return;
+    if (!wv) return;
     const { muted: m, volume: v, zoom: z } = settingsRef.current;
-    try {
-      if (wv.isAudioMuted() !== m) wv.setAudioMuted(m);
-      if (Math.abs(wv.getZoomFactor() - z) > 0.001) wv.setZoomFactor(z);
-      wv.send('pm-volume', v);
-    } catch {
-      /* webview ainda não está pronto */
-    }
+    try { if (wv.isAudioMuted() !== m) wv.setAudioMuted(m); } catch { /* não pronto */ }
+    try { if (Math.abs(wv.getZoomFactor() - z) > 0.001) wv.setZoomFactor(z); } catch { /* não pronto */ }
+    try { wv.send('pm-volume', v); } catch { /* não pronto */ }
   }, []);
 
   // Escala da tela virtual conforme o tamanho do painel
@@ -89,31 +90,17 @@ const GameView = forwardRef(function GameView({ slot, muted, volume, zoom, boost
     const wv = webviewRef.current;
     if (!wv) return undefined;
 
-    const onDomReady = () => {
-      domReadyRef.current = true;
-      applySettings();
-    };
-    const onStart = () => {
-      domReadyRef.current = false;
-    };
     const onReapply = () => {
-      domReadyRef.current = true;
       applySettings();
       setTimeout(applySettings, 300); // alguns jogos zeram o zoom logo após carregar
     };
 
-    wv.addEventListener('dom-ready', onDomReady);
-    wv.addEventListener('did-start-loading', onStart);
-    REAPPLY_EVENTS.filter((e) => e !== 'dom-ready').forEach((e) => wv.addEventListener(e, onReapply));
-
-    // Garantia extra: confere de tempos em tempos
+    REAPPLY_EVENTS.forEach((e) => wv.addEventListener(e, onReapply));
     const timer = setInterval(applySettings, 2000);
 
     return () => {
       clearInterval(timer);
-      wv.removeEventListener('dom-ready', onDomReady);
-      wv.removeEventListener('did-start-loading', onStart);
-      REAPPLY_EVENTS.filter((e) => e !== 'dom-ready').forEach((e) => wv.removeEventListener(e, onReapply));
+      REAPPLY_EVENTS.forEach((e) => wv.removeEventListener(e, onReapply));
     };
   }, [applySettings]);
 

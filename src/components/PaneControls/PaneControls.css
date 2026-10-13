@@ -57,3 +57,14 @@
 .controls__slider { width: 80px; accent-color: var(--accent); }
 
 .controls__spacer { flex: 1; }
+
+@media (max-width: 1050px) {
+  .controls__name {
+    display: none;
+  }
+}
+@media (max-width: 900px) {
+  .controls__slider {
+    display: none;
+  }
+}

@@ -19,7 +19,7 @@ export default function App() {
   const visibleCount = visibleSlots.length;
 
   const isVisible = (slot) => visibleSlots.some((a) => a.slot === slot);
-  const showEmptySlot = !focusing && layout === '2x2' && count < MAX_ACCOUNTS;
+  const showEmptySlot = !focusing && count < MAX_ACCOUNTS && (layout === '2x2' || visibleCount < 2);
 
   // O quadro "Adicionar conta" também ocupa uma célula da grade
   const totalTiles = visibleCount + (showEmptySlot ? 1 : 0);
