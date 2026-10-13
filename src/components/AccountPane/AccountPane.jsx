@@ -21,6 +21,7 @@ export default function AccountPane({ account, hidden, focused, canRemove, onCha
         onChange={onChange}
         onToggleFocus={onToggleFocus}
         onRemove={handleRemove}
+        onReload={() => gameRef.current?.reload()}
       />
       <GameView
         ref={gameRef}
@@ -28,6 +29,8 @@ export default function AccountPane({ account, hidden, focused, canRemove, onCha
         muted={account.muted}
         volume={account.volume}
         zoom={account.zoom}
+        boost={!!account.boost}
+        focused={focused}
       />
     </section>
   );

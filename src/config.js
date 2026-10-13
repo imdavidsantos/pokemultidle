@@ -8,6 +8,10 @@ export const VIRTUAL_WIDTH = 1920;
 // Altura inicial; depois a altura é calculada para acompanhar a proporção do painel.
 export const VIRTUAL_HEIGHT = 1080;
 
+// Modo boost: o jogo enxerga uma janela vertical deste tamanho
+export const BOOST_WIDTH = 500;
+export const BOOST_HEIGHT = 900;
+
 export const ZOOM_MIN = 0.5;
 export const ZOOM_MAX = 2;
 export const ZOOM_STEP = 0.1;

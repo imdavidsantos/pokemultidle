@@ -4,7 +4,7 @@ import './PaneControls.css';
 
 const clampZoom = (z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(z * 100) / 100));
 
-export default function PaneControls({ account, focused, canRemove, onChange, onToggleFocus, onRemove }) {
+export default function PaneControls({ account, focused, canRemove, onChange, onToggleFocus, onRemove, onReload }) {
   const [editing, setEditing] = useState(false);
   const zoomed = account.zoom !== 1;
 
@@ -60,7 +60,18 @@ export default function PaneControls({ account, focused, canRemove, onChange, on
         <button className="controls__btn" onClick={() => onChange({ zoom: clampZoom(account.zoom + ZOOM_STEP) })} aria-label="Aumentar zoom">+</button>
       </div>
 
+      <button
+        className={`controls__btn ${account.boost ? 'is-on' : ''}`}
+        onClick={() => onChange({ boost: !account.boost })}
+        aria-pressed={!!account.boost}
+        title={account.boost ? 'Desativar boost (voltar para 1920 de largura)' : 'Ativar boost (500×900)'}
+      >
+        ⚡
+      </button>
       <span className="controls__spacer" />
+      <button className="controls__btn" onClick={onReload} title="Recarregar página (F5)">
+        ⟳
+      </button>
 
       <button className={`controls__btn ${focused ? 'is-on' : ''}`} onClick={onToggleFocus} title={focused ? 'Voltar para todas' : 'Focar nesta tela'}>
         {focused ? '⤡' : '⤢'}

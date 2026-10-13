@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import TopBar from './components/TopBar/TopBar.jsx';
 import AccountPane from './components/AccountPane/AccountPane.jsx';
 import EmptySlot from './components/EmptySlot/EmptySlot.jsx';
@@ -26,6 +26,13 @@ export default function App() {
   const cols = totalTiles === 1 ? 1 : 2;
   const rows = totalTiles <= 2 ? 1 : 2;
 
+  useEffect(() => {
+    if (!focusing) return undefined;
+    const onKey = (e) => e.key === 'Escape' && setFocus(null);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [focusing, setFocus]);
+
   const chooseLayout = (next) => {
     setLayout(next);
     setFocus(null); // sai do foco e mostra o layout escolhido
@@ -33,13 +40,15 @@ export default function App() {
 
   return (
     <div className="app">
-      <TopBar
-        accounts={accounts}
-        layout={layout}
-        focusedSlot={focusing ? focusedSlot : null}
-        onLayout={chooseLayout}
-        onAdd={addAccount}
-      />
+      {!focusing && (
+        <TopBar
+          accounts={accounts}
+          layout={layout}
+          focusedSlot={null}
+          onLayout={chooseLayout}
+          onAdd={addAccount}
+        />
+      )}
 
       <main
         className="app__grid"

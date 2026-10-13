@@ -1,5 +1,5 @@
-import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
-import { GAME_URL, VIRTUAL_HEIGHT, VIRTUAL_WIDTH } from '../../config';
+import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, useMemo } from 'react';
+import { BOOST_HEIGHT, BOOST_WIDTH, GAME_URL, VIRTUAL_HEIGHT, VIRTUAL_WIDTH } from '../../config';
 import './GameView.css';
 
 // Eventos do webview em que o som/zoom precisam ser aplicados de novo
@@ -17,12 +17,12 @@ const REAPPLY_EVENTS = [
  * Renderiza o jogo numa "tela de PC" virtual (1920 de largura, altura proporcional ao painel)
  * e a ajusta com CSS para caber no painel. Cada conta usa uma sessão própria (partition).
  */
-const GameView = forwardRef(function GameView({ slot, muted, volume, zoom }, ref) {
+const GameView = forwardRef(function GameView({ slot, muted, volume, zoom, boost, focused }, ref) {
   const boxRef = useRef(null);
   const webviewRef = useRef(null);
   const domReadyRef = useRef(false);
   const settingsRef = useRef({ muted, volume, zoom });
-  const [screen, setScreen] = useState({ scale: 0.5, height: VIRTUAL_HEIGHT });
+  const [panel, setPanel] = useState({ width: 0, height: 0 });
 
   settingsRef.current = { muted, volume, zoom };
 
@@ -50,16 +50,39 @@ const GameView = forwardRef(function GameView({ slot, muted, volume, zoom }, ref
     if (!el) return undefined;
     const update = () => {
       const { width, height } = el.getBoundingClientRect();
-      if (width && height) {
-        const scale = width / VIRTUAL_WIDTH;
-        setScreen({ scale, height: Math.round(height / scale) });
-      }
+      if (width && height) setPanel({ width, height });
     };
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  const screen = useMemo(() => {
+    const { width, height } = panel;
+    if (!width || !height) {
+      return { width: VIRTUAL_WIDTH, height: VIRTUAL_HEIGHT, scale: 0.5, left: 0, top: 0 };
+    }
+
+    // Foco: sem largura definida, o jogo ocupa o painel inteiro em tamanho real
+    if (focused) {
+      return { width, height, scale: 1, left: 0, top: 0 };
+    }
+
+    if (boost) {
+      const scale = Math.min(width / BOOST_WIDTH, height / BOOST_HEIGHT);
+      return {
+        width: BOOST_WIDTH,
+        height: BOOST_HEIGHT,
+        scale,
+        left: (width - BOOST_WIDTH * scale) / 2,
+        top: (height - BOOST_HEIGHT * scale) / 2,
+      };
+    }
+
+    const scale = width / VIRTUAL_WIDTH;
+    return { width: VIRTUAL_WIDTH, height: Math.round(height / scale), scale, left: 0, top: 0 };
+  }, [panel, boost, focused]);
 
   // Reaplica as configurações sempre que o jogo navegar/carregar algo novo
   useEffect(() => {
@@ -106,8 +129,10 @@ const GameView = forwardRef(function GameView({ slot, muted, volume, zoom }, ref
       <div
         className="gameview__screen"
         style={{
-          width: VIRTUAL_WIDTH,
+          width: screen.width,
           height: screen.height,
+          left: screen.left,
+          top: screen.top,
           transform: `scale(${screen.scale})`,
         }}
       >
