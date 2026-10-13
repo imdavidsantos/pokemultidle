@@ -1,7 +1,44 @@
-const { app, BrowserWindow, shell } = require('electron');
+const { app, BrowserWindow, shell, dialog } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const path = require('path');
 
 const isDev = process.env.NODE_ENV === 'development';
+
+function setupAutoUpdate(win) {
+  if (!app.isPackaged) return; // em desenvolvimento não há o que atualizar
+
+  autoUpdater.autoDownload = false; // só baixa se o usuário aceitar
+
+  autoUpdater.on('update-available', async (info) => {
+    const { response } = await dialog.showMessageBox(win, {
+      type: 'info',
+      buttons: ['Atualizar agora', 'Depois'],
+      defaultId: 0,
+      cancelId: 1,
+      title: 'Atualização disponível',
+      message: `Nova versão ${info.version} disponível.`,
+      detail: 'Deseja baixar e instalar agora?',
+    });
+    if (response === 0) autoUpdater.downloadUpdate();
+  });
+
+  autoUpdater.on('update-downloaded', async () => {
+    const { response } = await dialog.showMessageBox(win, {
+      type: 'info',
+      buttons: ['Reiniciar e instalar', 'Depois'],
+      defaultId: 0,
+      cancelId: 1,
+      title: 'Atualização pronta',
+      message: 'A atualização foi baixada.',
+      detail: 'Reiniciar agora para instalar? Seus logins ficam salvos.',
+    });
+    if (response === 0) autoUpdater.quitAndInstall();
+  });
+
+  autoUpdater.on('error', (err) => console.error('Erro ao atualizar:', err));
+
+  autoUpdater.checkForUpdates().catch((err) => console.error('Falha ao checar atualização:', err));
+}
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -35,6 +72,8 @@ function createWindow() {
     shell.openExternal(url);
     return { action: 'deny' };
   });
+
+  setupAutoUpdate(win);
 }
 
 // Mantém os jogos ativos mesmo com a janela minimizada/oculta
