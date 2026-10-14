@@ -35,6 +35,13 @@ function setupAutoUpdate(win) {
     if (response === 0) autoUpdater.quitAndInstall();
   });
 
+  autoUpdater.on('update-not-available', () => {
+    dialog.showMessageBox(win, { message: 'Você já está na versão mais recente.' });
+  });
+  autoUpdater.on('error', (err) => {
+    dialog.showErrorBox('Erro ao atualizar', String(err));
+  });
+
   autoUpdater.on('error', (err) => console.error('Erro ao atualizar:', err));
 
   autoUpdater.checkForUpdates().catch((err) => console.error('Falha ao checar atualização:', err));
