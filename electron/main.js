@@ -35,13 +35,6 @@ function setupAutoUpdate(win) {
     if (response === 0) autoUpdater.quitAndInstall();
   });
 
-  autoUpdater.on('update-not-available', () => {
-    dialog.showMessageBox(win, { message: 'Você já está na versão mais recente.' });
-  });
-  autoUpdater.on('error', (err) => {
-    dialog.showErrorBox('Erro ao atualizar', String(err));
-  });
-
   autoUpdater.on('error', (err) => console.error('Erro ao atualizar:', err));
 
   autoUpdater.checkForUpdates().catch((err) => console.error('Falha ao checar atualização:', err));
@@ -54,7 +47,7 @@ function createWindow() {
     minWidth: 900,
     minHeight: 600,
     icon: path.join(__dirname, '..', 'build', 'icon.png'),
-    title: 'Pokemultidle 3.0',
+    title: `Pokemultidle ${app.getVersion()}`,
     backgroundColor: '#14161f',
     autoHideMenuBar: true,
     webPreferences: {
