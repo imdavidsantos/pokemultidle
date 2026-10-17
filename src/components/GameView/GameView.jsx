@@ -1,17 +1,8 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, useMemo } from 'react';
 import { BOOST_HEIGHT, BOOST_WIDTH, GAME_URL, VIRTUAL_HEIGHT, VIRTUAL_WIDTH } from '../../config';
+import { copiarFicha } from '../../utils/copiarFicha';
+import { REAPPLY_EVENTS } from '../../utils/zoom';
 import './GameView.css';
-
-// Eventos do webview em que o som/zoom precisam ser aplicados de novo
-// (o Electron zera o zoom e a página nova perde o volume ao navegar, ex.: depois do login)
-const REAPPLY_EVENTS = [
-  'dom-ready',
-  'did-finish-load',
-  'did-navigate',
-  'did-navigate-in-page',
-  'did-frame-finish-load',
-  'media-started-playing',
-];
 
 /**
  * Renderiza o jogo numa "tela de PC" virtual (1920 de largura, altura proporcional ao painel)
@@ -33,6 +24,7 @@ const GameView = forwardRef(function GameView({ slot, muted, volume, zoom, boost
         console.warn('Webview ainda não está pronto para recarregar:', err);
       }
     },
+    copySheet: () => copiarFicha(webviewRef.current),
   }));
 
   // Aplica mute, zoom e volume no que estiver carregado agora

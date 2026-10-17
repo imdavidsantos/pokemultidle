@@ -1,14 +1,45 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from '../../config';
 import './PaneControls.css';
+import { VolumeConfigIcon } from './icons/VolumeConfigIcon';
 
 const clampZoom = (z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(z * 100) / 100));
 
-export default function PaneControls({ account, focused, canRemove, onChange, onToggleFocus, onRemove, onReload }) {
+export default function PaneControls({ account, focused, canRemove, onChange, onToggleFocus, onRemove, onReload, onCopySheet }) {
   const [editing, setEditing] = useState(false);
+  const [volOpen, setVolOpen] = useState(false);
+  const [copied, setCopied] = useState(null); // 'ok' | 'err' | null
+  const volRef = useRef(null);
   const zoomed = account.zoom !== 1;
 
   const volumeIcon = account.muted || account.volume === 0 ? '🔇' : account.volume < 0.5 ? '🔉' : '🔊';
+
+  // Fecha o painel de volume ao clicar fora, apertar Esc ou clicar dentro do jogo
+  useEffect(() => {
+    if (!volOpen) return undefined;
+    const close = () => setVolOpen(false);
+    const onDown = (e) => { if (volRef.current && !volRef.current.contains(e.target)) close(); };
+    const onKey = (e) => { if (e.key === 'Escape') close(); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('blur', close); // clique dentro do webview tira o foco da janela
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('blur', close);
+    };
+  }, [volOpen]);
+
+  const handleCopy = async () => {
+    try {
+      await onCopySheet();
+      setCopied('ok');
+    } catch (err) {
+      console.warn('Não foi possível copiar a ficha:', err);
+      setCopied('err');
+    }
+    setTimeout(() => setCopied(null), 1500);
+  };
 
   return (
     <div className="controls">
@@ -27,7 +58,7 @@ export default function PaneControls({ account, focused, canRemove, onChange, on
         </button>
       )}
 
-      <div className="controls__group" title="Som">
+      <div className="controls__group controls__volume" ref={volRef} title="Som">
         <button
           className={`controls__btn ${account.muted ? 'is-on' : ''}`}
           onClick={() => onChange({ muted: !account.muted })}
@@ -36,16 +67,30 @@ export default function PaneControls({ account, focused, canRemove, onChange, on
         >
           {volumeIcon}
         </button>
-        <input
-          className="controls__slider"
-          type="range"
-          min="0"
-          max="1"
-          step="0.05"
-          value={account.volume}
-          onChange={(e) => onChange({ volume: Number(e.target.value), muted: false })}
-          aria-label="Volume"
-        />
+        <button
+          className={`controls__btn ${volOpen ? 'is-on' : ''}`}
+          onClick={() => setVolOpen((o) => !o)}
+          aria-expanded={volOpen}
+          aria-label="Configurar volume"
+          title="Configurar volume"
+        >
+          <VolumeConfigIcon />
+        </button>
+        {volOpen && (
+          <div className="controls__popover" role="dialog" aria-label="Volume">
+            <input
+              className="controls__slider"
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={account.volume}
+              onChange={(e) => onChange({ volume: Number(e.target.value), muted: false })}
+              aria-label="Volume"
+            />
+            <span className="controls__vol-value">{Math.round(account.volume * 100)}%</span>
+          </div>
+        )}
       </div>
 
       <div className="controls__group" title="Zoom do jogo">
@@ -68,10 +113,14 @@ export default function PaneControls({ account, focused, canRemove, onChange, on
       >
         ⚡
       </button>
-      <span className="controls__spacer" />
-      <button className="controls__btn" onClick={onReload} title="Recarregar página (F5)">
-        ⟳
+
+      <button className="controls__btn" onClick={handleCopy} title="Copiar ficha do pokémon equipado">
+        {copied === 'ok' ? '✓' : copied === 'err' ? '⚠' : '📋'}
       </button>
+
+      <span className="controls__spacer" />
+
+      <button className="controls__btn" onClick={onReload} title="Recarregar página (F5)">⟳</button>
 
       <button className={`controls__btn ${focused ? 'is-on' : ''}`} onClick={onToggleFocus} title={focused ? 'Voltar para todas' : 'Focar nesta tela'}>
         {focused ? '⤡' : '⤢'}
