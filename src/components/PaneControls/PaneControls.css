@@ -1,9 +1,9 @@
 .controls {
   display: flex;
   align-items: center;
-  gap: 10px;
-  height: 36px;
-  padding: 0 8px;
+  gap: 5px;
+  height: auto;
+  padding: 2px;
   background: var(--panel-2);
   border-bottom: 1px solid var(--line);
   flex-shrink: 0;
@@ -34,6 +34,7 @@
 
 .controls__group { display: flex; align-items: center; gap: 2px; }
 
+
 .controls__btn,
 .controls__zoom {
   min-width: 26px;
@@ -50,21 +51,43 @@
 .controls__btn.is-on { background: var(--accent); color: var(--accent-ink); }
 .controls__btn:disabled { opacity: 0.35; cursor: not-allowed; }
 .controls__btn--danger:hover:not(:disabled) { background: var(--danger); }
+.controls__btn svg { display: block; margin: 0 auto; }
 
 .controls__zoom { min-width: 48px; font-size: 12px; color: var(--muted); }
 .controls__zoom.is-on { color: var(--accent); font-weight: 700; }
 
-.controls__slider { width: 80px; accent-color: var(--accent); }
-
 .controls__spacer { flex: 1; }
+
+/* Volume: botão de config com o slider num painel embaixo */
+.controls__volume { position: relative; }
+
+.controls__popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.controls__slider { accent-color: var(--accent); }
+.controls__popover .controls__slider { width: 140px; }
+
+.controls__vol-value {
+  min-width: 36px;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: right;
+}
 
 @media (max-width: 1050px) {
   .controls__name {
-    display: none;
-  }
-}
-@media (max-width: 900px) {
-  .controls__slider {
     display: none;
   }
 }
