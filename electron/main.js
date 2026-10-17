@@ -2,14 +2,25 @@ const { app, BrowserWindow, shell, dialog } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 
+if (!app.isPackaged) {
+  app.setPath('userData', path.join(app.getPath('appData'), 'pokemultidle-dev'));
+}
+
 const isDev = process.env.NODE_ENV === 'development';
+
+const CHECK_INTERVAL_MS = 12 * 60 * 60 * 1000; // 12 horas
 
 function setupAutoUpdate(win) {
   if (!app.isPackaged) return; // em desenvolvimento não há o que atualizar
 
   autoUpdater.autoDownload = false; // só baixa se o usuário aceitar
 
+  let busy = false;           // pergunta aberta ou download em andamento
+  let readyToInstall = false; // atualização já baixada
+
   autoUpdater.on('update-available', async (info) => {
+    if (busy || readyToInstall) return;
+    busy = true;
     const { response } = await dialog.showMessageBox(win, {
       type: 'info',
       buttons: ['Atualizar agora', 'Depois'],
@@ -19,10 +30,19 @@ function setupAutoUpdate(win) {
       message: `Nova versão ${info.version} disponível.`,
       detail: 'Deseja baixar e instalar agora?',
     });
-    if (response === 0) autoUpdater.downloadUpdate();
+    if (response === 0) {
+      autoUpdater.downloadUpdate().catch((err) => {
+        console.error('Erro ao baixar atualização:', err);
+        busy = false;
+      });
+    } else {
+      busy = true; // para não perguntar de novo caso for selecionado "depois"
+    }
   });
 
   autoUpdater.on('update-downloaded', async () => {
+    readyToInstall = true;
+    busy = false;
     const { response } = await dialog.showMessageBox(win, {
       type: 'info',
       buttons: ['Reiniciar e instalar', 'Depois'],
@@ -35,9 +55,18 @@ function setupAutoUpdate(win) {
     if (response === 0) autoUpdater.quitAndInstall();
   });
 
-  autoUpdater.on('error', (err) => console.error('Erro ao atualizar:', err));
+  autoUpdater.on('error', (err) => {
+    console.error('Erro ao atualizar:', err);
+    busy = false;
+  });
 
-  autoUpdater.checkForUpdates().catch((err) => console.error('Falha ao checar atualização:', err));
+  const check = () => {
+    if (busy || readyToInstall) return;
+    autoUpdater.checkForUpdates().catch((err) => console.error('Falha ao checar atualização:', err));
+  };
+
+  check();                                   // ao abrir o app
+  setInterval(check, CHECK_INTERVAL_MS);     // e a cada 12 horas
 }
 
 function createWindow() {
