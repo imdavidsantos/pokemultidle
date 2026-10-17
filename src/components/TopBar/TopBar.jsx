@@ -8,7 +8,7 @@ const LAYOUTS = [
   { id: '1x1', label: '1x1', title: 'Mostrar só 2 telas' },
 ];
 
-export default function TopBar({ accounts, layout, focusedSlot, onLayout, onAdd }) {
+export default function TopBar({ accounts, layout, focusedSlot, onLayout, onAdd, huntOpen, onToggleHunt }) {
   const full = accounts.length >= MAX_ACCOUNTS;
 
   return (
@@ -30,6 +30,14 @@ export default function TopBar({ accounts, layout, focusedSlot, onLayout, onAdd 
           </button>
         ))}
       </nav>
+      <button
+        className={`topbar__tab ${huntOpen ? 'is-active' : ''}, topbar__hunt`}
+        onClick={onToggleHunt}
+        aria-pressed={!!huntOpen}
+        title="Abrir o simulador de hunt"
+      >
+        /Hunt
+      </button>
     </header>
   );
 }

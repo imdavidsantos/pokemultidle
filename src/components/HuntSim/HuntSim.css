@@ -1,0 +1,42 @@
+.huntsim {
+  position: fixed;
+  top: 50px;   /* 44px da TopBar + 6px de respiro */
+  right: 6px;
+  z-index: 50;
+  min-width: 700px;
+  height: calc(100vh - 56px);
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+.huntsim__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.huntsim__close {
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 14px;
+  cursor: pointer;
+}
+.huntsim__close:hover { color: var(--text); }
+
+.huntsim__view {
+  display: inline-flex; /* webview precisa disso para dimensionar */
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}

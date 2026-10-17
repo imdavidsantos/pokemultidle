@@ -48,4 +48,13 @@
   font-weight: 600;
   white-space: nowrap;
 }
+.topbar__hunt {
+  background-color: var(--accent);
+  color: var(--bg);
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+.topbar__hunt:hover {
+  background-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  color: var(--bg);
+}
 .topbar__add:disabled { background: var(--panel-2); color: var(--muted); cursor: not-allowed; }
