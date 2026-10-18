@@ -2,6 +2,7 @@ import React from 'react';
 import { APP_NAME, MAX_ACCOUNTS } from '../../config';
 import './TopBar.css';
 import pokeball from '../../assets/pokeball.svg';
+import SettingsMenu from '../SettingsMenu/SettingsMenu';
 
 const LAYOUTS = [
   { id: '2x2', label: '2x2', title: 'Mostrar todas as telas' },
@@ -38,6 +39,7 @@ export default function TopBar({ accounts, layout, focusedSlot, onLayout, onAdd,
       >
         /Hunt
       </button>
+      <SettingsMenu />
     </header>
   );
 }

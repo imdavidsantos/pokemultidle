@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell, dialog } = require('electron');
+const { app, BrowserWindow, shell, dialog, ipcMain } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 
@@ -10,13 +10,52 @@ const isDev = process.env.NODE_ENV === 'development';
 
 const CHECK_INTERVAL_MS = 12 * 60 * 60 * 1000; // 12 horas
 
+// Verificação manual (menu Configurações → Verificar atualizações).
+// Devolve o resultado para a interface. Se houver versão nova, o diálogo de
+// "Atualização disponível" continua sendo aberto pelo handler normal.
+function manualCheck() {
+  return new Promise((resolve) => {
+    let settled = false;
+    const timer = setTimeout(() => finish({ status: 'error', message: 'timeout' }), 20000);
+
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      autoUpdater.removeListener('update-available', onAvailable);
+      autoUpdater.removeListener('update-not-available', onNone);
+      autoUpdater.removeListener('error', onError);
+      resolve(result);
+    };
+    const onAvailable = (info) => finish({ status: 'available', version: info.version });
+    const onNone = () => finish({ status: 'none' });
+    const onError = (err) => finish({ status: 'error', message: String(err?.message || err) });
+
+    autoUpdater.on('update-available', onAvailable);
+    autoUpdater.on('update-not-available', onNone);
+    autoUpdater.on('error', onError);
+    autoUpdater.checkForUpdates().catch(onError);
+  });
+}
+
 function setupAutoUpdate(win) {
+  let busy = false;           // pergunta aberta ou download em andamento
+  let dismissed = false;      // usuário escolheu "Depois": a checagem automática não pergunta de novo
+  let readyToInstall = false; // atualização já baixada
+
+  // Pedido vindo do botão da interface (registrado antes do return do modo dev)
+  ipcMain.removeHandler('updater:check'); // evita registro duplicado se a janela for recriada
+  ipcMain.handle('updater:check', async () => {
+    if (!app.isPackaged) return { status: 'dev' };
+    if (readyToInstall) return { status: 'ready' };
+    if (busy) return { status: 'busy' };
+    dismissed = false; // pedido manual: volta a perguntar se houver versão nova
+    return manualCheck();
+  });
+
   if (!app.isPackaged) return; // em desenvolvimento não há o que atualizar
 
   autoUpdater.autoDownload = false; // só baixa se o usuário aceitar
-
-  let busy = false;           // pergunta aberta ou download em andamento
-  let readyToInstall = false; // atualização já baixada
 
   autoUpdater.on('update-available', async (info) => {
     if (busy || readyToInstall) return;
@@ -36,7 +75,8 @@ function setupAutoUpdate(win) {
         busy = false;
       });
     } else {
-      busy = true; // para não perguntar de novo caso for selecionado "depois"
+      busy = false;
+      dismissed = true; // a checagem automática para de perguntar nesta sessão
     }
   });
 
@@ -61,12 +101,12 @@ function setupAutoUpdate(win) {
   });
 
   const check = () => {
-    if (busy || readyToInstall) return;
+    if (busy || dismissed || readyToInstall) return;
     autoUpdater.checkForUpdates().catch((err) => console.error('Falha ao checar atualização:', err));
   };
 
-  check();                                   // ao abrir o app
-  setInterval(check, CHECK_INTERVAL_MS);     // e a cada 12 horas
+  check();                               // ao abrir o app
+  setInterval(check, CHECK_INTERVAL_MS); // e a cada 12 horas
 }
 
 function createWindow() {
