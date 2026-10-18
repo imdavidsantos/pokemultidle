@@ -7,6 +7,7 @@ const defaultAccount = (slot) => ({
   muted: false,
   volume: 1,
   zoom: 1,
+  phone: false,
   boost: false,
 });
 

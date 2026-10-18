@@ -38,6 +38,7 @@ export default function AccountPane({ account, hidden, focused, canRemove, onCha
         muted={account.muted}
         volume={account.volume}
         zoom={account.zoom}
+        phone={!!account.phone}
         boost={!!account.boost}
         focused={focused}
       />

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './SettingsMenu.css';
 import { MESSAGES } from '../../utils/messages';
-import { GearIcon } from '../../assets/gearIcon';
+import { GearIcon } from '../../assets/icons/GearIcon';
 
 export default function SettingsMenu() {
   const [open, setOpen] = useState(false);

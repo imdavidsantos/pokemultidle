@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from '../../config';
 import './PaneControls.css';
-import { VolumeConfigIcon } from './icons/VolumeConfigIcon';
+import { VolumeConfigIcon } from '../../assets/icons/VolumeConfigIcon';
+import { PhoneIcon } from '../../assets/icons/PhoneIcon';
+import { BoostIcon } from '../../assets/icons/BoostIcon';
 
 const clampZoom = (z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(z * 100) / 100));
 
@@ -106,12 +108,20 @@ export default function PaneControls({ account, focused, canRemove, onChange, on
       </div>
 
       <button
+        className={`controls__btn ${account.phone ? 'is-on' : ''}`}
+        onClick={() => onChange({ phone: !account.phone })}
+        aria-pressed={!!account.phone}
+        title={account.phone ? 'Desativar modo celular (voltar para 1920 de largura)' : 'Ativar modo celular (500×900)'}
+      >
+        <PhoneIcon />
+      </button>
+      <button
         className={`controls__btn ${account.boost ? 'is-on' : ''}`}
         onClick={() => onChange({ boost: !account.boost })}
         aria-pressed={!!account.boost}
-        title={account.boost ? 'Desativar boost (voltar para 1920 de largura)' : 'Ativar boost (500×900)'}
+        title={account.boost ? 'Desativar boost (fps normal)' : 'Ativar boost (15 fps)'}
       >
-        ⚡
+        <BoostIcon />
       </button>
 
       <button className="controls__btn" onClick={handleCopy} title="Copiar ficha do pokémon equipado">

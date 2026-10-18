@@ -37,6 +37,9 @@
 
 .controls__btn,
 .controls__zoom {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-width: 26px;
   height: 26px;
   padding: 0 6px;
@@ -46,6 +49,7 @@
   color: var(--text);
   transition: background 0.15s;
 }
+
 .controls__btn:hover,
 .controls__zoom:hover { background: var(--line); }
 .controls__btn.is-on { background: var(--accent); color: var(--accent-ink); }

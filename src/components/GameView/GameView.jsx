@@ -1,20 +1,21 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, useMemo } from 'react';
-import { BOOST_HEIGHT, BOOST_WIDTH, GAME_URL, VIRTUAL_HEIGHT, VIRTUAL_WIDTH } from '../../config';
+import { PHONE_HEIGHT, PHONE_WIDTH, GAME_URL, VIRTUAL_HEIGHT, VIRTUAL_WIDTH, BOOST_FPS } from '../../config';
 import { copiarFicha } from '../../utils/copiarFicha';
 import { REAPPLY_EVENTS } from '../../utils/zoom';
+import { aplicarLimiteFps } from '../../utils/fpsLimit';
 import './GameView.css';
 
 /**
  * Renderiza o jogo numa "tela de PC" virtual (1920 de largura, altura proporcional ao painel)
  * e a ajusta com CSS para caber no painel. Cada conta usa uma sessão própria (partition).
  */
-const GameView = forwardRef(function GameView({ slot, muted, volume, zoom, boost, focused }, ref) {
+const GameView = forwardRef(function GameView({ slot, muted, volume, zoom, phone, boost, focused }, ref) {
   const boxRef = useRef(null);
   const webviewRef = useRef(null);
   const settingsRef = useRef({ muted, volume, zoom });
   const [panel, setPanel] = useState({ width: 0, height: 0 });
 
-  settingsRef.current = { muted, volume, zoom };
+  settingsRef.current = { muted, volume, zoom, boost };
 
   useImperativeHandle(ref, () => ({
     reload: () => {
@@ -35,6 +36,12 @@ const GameView = forwardRef(function GameView({ slot, muted, volume, zoom, boost
     try { if (wv.isAudioMuted() !== m) wv.setAudioMuted(m); } catch { /* não pronto */ }
     try { if (Math.abs(wv.getZoomFactor() - z) > 0.001) wv.setZoomFactor(z); } catch { /* não pronto */ }
     try { wv.send('pm-volume', v); } catch { /* não pronto */ }
+  }, []);
+
+  const applyFps = useCallback(() => {
+    const wv = webviewRef.current;
+    if (!wv) return;
+    aplicarLimiteFps(wv, settingsRef.current.boost ? BOOST_FPS : 0);
   }, []);
 
   // Escala da tela virtual conforme o tamanho do painel
@@ -62,20 +69,20 @@ const GameView = forwardRef(function GameView({ slot, muted, volume, zoom, boost
       return { width, height, scale: 1, left: 0, top: 0 };
     }
 
-    if (boost) {
-      const scale = Math.min(width / BOOST_WIDTH, height / BOOST_HEIGHT);
+    if (phone) {
+      const scale = Math.min(width / PHONE_WIDTH, height / PHONE_HEIGHT);
       return {
-        width: BOOST_WIDTH,
-        height: BOOST_HEIGHT,
+        width: PHONE_WIDTH,
+        height: PHONE_HEIGHT,
         scale,
-        left: (width - BOOST_WIDTH * scale) / 2,
-        top: (height - BOOST_HEIGHT * scale) / 2,
+        left: (width - PHONE_WIDTH * scale) / 2,
+        top: (height - PHONE_HEIGHT * scale) / 2,
       };
     }
 
     const scale = width / VIRTUAL_WIDTH;
     return { width: VIRTUAL_WIDTH, height: Math.round(height / scale), scale, left: 0, top: 0 };
-  }, [panel, boost, focused]);
+  }, [panel, phone, focused]);
 
   // Reaplica as configurações sempre que o jogo navegar/carregar algo novo
   useEffect(() => {
@@ -84,6 +91,7 @@ const GameView = forwardRef(function GameView({ slot, muted, volume, zoom, boost
 
     const onReapply = () => {
       applySettings();
+      applyFps();
       setTimeout(applySettings, 300); // alguns jogos zeram o zoom logo após carregar
     };
 
@@ -100,6 +108,10 @@ const GameView = forwardRef(function GameView({ slot, muted, volume, zoom, boost
   useEffect(() => {
     applySettings();
   }, [muted, volume, zoom, applySettings]);
+
+  useEffect(() => {
+    applyFps();
+  }, [boost, applyFps]);
 
   const preload = window.pokemultidle?.webviewPreload;
 
