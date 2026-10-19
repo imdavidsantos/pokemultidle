@@ -1,0 +1,73 @@
+.valepanel {
+  position: fixed;
+  top: 50px;   /* 44px da TopBar + 6px de respiro */
+  right: 6px;
+  z-index: 50;
+  width: 460px;
+  max-height: calc(100vh - 56px);
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+.valepanel__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.valepanel__close {
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 14px;
+  cursor: pointer;
+}
+.valepanel__close:hover { color: var(--text); }
+
+.valepanel__body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  overflow-y: auto;
+  min-height: 0;
+  color: var(--text);
+}
+
+.valepanel__input {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel-2);
+  color: var(--text);
+  font-family: monospace;
+  font-size: 12px;
+}
+.valepanel__input:focus { outline: none; border-color: var(--accent); }
+
+.valepanel__actions { display: flex; gap: 6px; }
+
+.valepanel__btn {
+  padding: 5px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.valepanel__btn:hover:not(:disabled) { background: var(--panel-2); color: var(--text); }
+.valepanel__btn:disabled { opacity: 0.4; cursor: not-allowed; }

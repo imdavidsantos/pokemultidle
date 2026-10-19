@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import TopBar from './components/TopBar/TopBar.jsx';
 import AccountPane from './components/AccountPane/AccountPane.jsx';
 import EmptySlot from './components/EmptySlot/EmptySlot.jsx';
+import ValePanel from './components/ValePane/ValePanel.jsx';
 import HuntSim from './components/HuntSim/HuntSim.jsx';
 import useAccounts from './hooks/useAccounts';
 import { MAX_ACCOUNTS } from './config';
@@ -10,6 +11,7 @@ import './App.css';
 export default function App() {
   const { accounts, focusedSlot, layout, addAccount, removeAccount, updateAccount, setFocus, setLayout } = useAccounts();
   const [huntOpen, setHuntOpen] = useState(false);
+  const [valeOpen, setValeOpen] = useState(false);
 
   // Foco numa tela (botão ⤢ de cada tela) continua valendo sobre o layout escolhido
   const focusing = focusedSlot !== null && accounts.some((a) => a.slot === focusedSlot);
@@ -44,13 +46,13 @@ export default function App() {
     <div className="app">
       {!focusing && (
         <TopBar
-          accounts={accounts}
           layout={layout}
           focusedSlot={null}
           onLayout={chooseLayout}
-          onAdd={addAccount}
           huntOpen={huntOpen}
           onToggleHunt={() => setHuntOpen((o) => !o)}
+          valeOpen={valeOpen}
+          onToggleVale={() => { setValeOpen((v) => !v); setHuntOpen(false); }}
         />
       )}
 
@@ -77,7 +79,8 @@ export default function App() {
           />
         )}
       </main>
-        {huntOpen && <HuntSim onClose={() => setHuntOpen(false)} />}
+      {huntOpen && <HuntSim onClose={() => setHuntOpen(false)} />}
+      {valeOpen && <ValePanel onClose={() => setValeOpen(false)} />}
     </div>
   );
 }

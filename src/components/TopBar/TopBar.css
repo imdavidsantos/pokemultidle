@@ -1,7 +1,7 @@
 .topbar {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 8px;
   height: 44px;
   padding: 0 15px;
   background: var(--panel);

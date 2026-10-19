@@ -1,5 +1,5 @@
 import React from 'react';
-import { APP_NAME, MAX_ACCOUNTS } from '../../config';
+import { APP_NAME } from '../../config';
 import './TopBar.css';
 import pokeball from '../../assets/pokeball.svg';
 import SettingsMenu from '../SettingsMenu/SettingsMenu';
@@ -9,9 +9,11 @@ const LAYOUTS = [
   { id: '1x1', label: '1x1', title: 'Mostrar só 2 telas' },
 ];
 
-export default function TopBar({ accounts, layout, focusedSlot, onLayout, onAdd, huntOpen, onToggleHunt }) {
-  const full = accounts.length >= MAX_ACCOUNTS;
-
+export default function TopBar({
+  layout, focusedSlot, onLayout,
+  huntOpen, onToggleHunt,
+  valeOpen, onToggleVale,
+}) {
   return (
     <header className="topbar">
       <div className="topbar__brand">
@@ -32,12 +34,20 @@ export default function TopBar({ accounts, layout, focusedSlot, onLayout, onAdd,
         ))}
       </nav>
       <button
-        className={`topbar__tab ${huntOpen ? 'is-active' : ''}, topbar__hunt`}
+        className={`topbar__tab topbar__hunt ${huntOpen ? 'is-active' : ''}`}
         onClick={onToggleHunt}
         aria-pressed={!!huntOpen}
         title="Abrir o simulador de hunt"
       >
         /Hunt
+      </button>
+      <button
+        className={`topbar__tab topbar__hunt ${valeOpen ? 'is-active' : ''}`}
+        onClick={onToggleVale}
+        aria-pressed={!!valeOpen}
+        title="Avaliar se um pokémon vale a pena"
+      >
+        /PokeVale
       </button>
       <SettingsMenu />
     </header>

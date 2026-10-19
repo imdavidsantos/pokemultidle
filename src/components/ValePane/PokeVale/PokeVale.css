@@ -1,0 +1,86 @@
+.pokevale {
+  /* cores de status: mude aqui para ajustar tudo de uma vez */
+  --vale-ok: #2e9e5b;
+  --vale-warn: #d9a21b;
+  --vale-no: #d9534f;
+
+  display: grid;
+  gap: 12px;
+  width: 100%;
+  color: var(--text);
+}
+
+.pokevale__empty {
+  margin: 0;
+  color: var(--muted);
+}
+
+/* ---------- erros ---------- */
+.pokevale__erros { color: var(--vale-no); }
+.pokevale__erro { margin: 4px 0; }
+
+/* ---------- veredito ---------- */
+.pokevale__veredito {
+  --cor: var(--vale-warn);
+  padding: 12px 14px;
+  border: 2px solid var(--cor);
+  border-radius: 10px;
+}
+.pokevale__veredito.is-bom   { --cor: var(--vale-ok); }
+.pokevale__veredito.is-medio { --cor: var(--vale-warn); }
+.pokevale__veredito.is-ruim  { --cor: var(--vale-no); }
+
+.pokevale__veredito-titulo {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--cor);
+}
+.pokevale__veredito-sub { opacity: 0.8; }
+.pokevale__veredito-info {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+/* ---------- checks ---------- */
+.pokevale__checks {
+  display: grid;
+  gap: 8px;
+}
+
+.pokevale__check {
+  --cor: var(--vale-warn);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 12px;
+  padding: 8px 12px;
+  border-left: 4px solid var(--cor);
+  border-radius: 6px;
+  background: var(--panel-2, rgba(128, 128, 128, 0.08));
+}
+.pokevale__check.is-ok   { --cor: var(--vale-ok); }
+.pokevale__check.is-warn { --cor: var(--vale-warn); }
+.pokevale__check.is-no   { --cor: var(--vale-no); }
+
+.pokevale__check-titulo { font-weight: 700; }
+.pokevale__check-valor {
+  font-size: 18px;
+  font-weight: 700;
+  text-align: right;
+}
+.pokevale__check-texto {
+  grid-column: 1 / -1;
+  font-size: 13px;
+  opacity: 0.75;
+}
+
+/* ---------- dicas e avisos ---------- */
+.pokevale__dicas { margin: 0; }
+
+.pokevale__avisos {
+  display: grid;
+  gap: 2px;
+  font-size: 13px;
+  color: var(--vale-warn);
+}
