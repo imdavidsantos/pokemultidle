@@ -33,7 +33,14 @@ export default function HelpMenu({ actions }) {
   }, [open, wide]);
 
   const items = actions.map((a) => (
-    <button key={a.id} className="help__action" role="menuitem" onClick={a.onClick}>
+    <button
+      key={a.id}
+      className="help__action"
+      role="menuitem"
+      onClick={a.onClick}
+      title={wide ? a.label : undefined}
+      aria-label={a.label}
+    >
       <span className="help__icon" aria-hidden="true">{a.icon}</span>
       {!wide && <span>{a.label}</span>}
     </button>

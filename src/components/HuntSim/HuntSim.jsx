@@ -6,7 +6,7 @@ export default function HuntSim({ onClose }) {
   return (
     <div className="huntsim" role="dialog" aria-label="Simulador de hunt">
       <div className="huntsim__bar">
-        <span className="huntsim__title">Hunt Simulator (Lotuzx)</span>
+        <span className="huntsim__title">Hunt Simulator</span>
         <button className="huntsim__close" onClick={onClose} aria-label="Fechar">✕</button>
       </div>
       <webview

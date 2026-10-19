@@ -3,7 +3,7 @@
   top: 50px;   /* 44px da TopBar + 6px de respiro */
   right: 6px;
   z-index: 50;
-  min-width: 850px;
+  min-width: 800px;
   height: calc(100vh - 56px);
   display: flex;
   flex-direction: column;
