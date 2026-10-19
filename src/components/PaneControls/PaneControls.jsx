@@ -4,6 +4,7 @@ import './PaneControls.css';
 import { VolumeConfigIcon } from '../../assets/icons/VolumeConfigIcon';
 import { PhoneIcon } from '../../assets/icons/PhoneIcon';
 import { BoostIcon } from '../../assets/icons/BoostIcon';
+import HelpMenu from './HelpMenu/HelpMenu';
 
 const clampZoom = (z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(z * 100) / 100));
 
@@ -42,6 +43,15 @@ export default function PaneControls({ account, focused, canRemove, onChange, on
     }
     setTimeout(() => setCopied(null), 1500);
   };
+
+  const helpActions = [
+    {
+      id: 'copy-sheet',
+      icon: copied === 'ok' ? '✓' : copied === 'err' ? '⚠' : '📋',
+      label: copied === 'ok' ? 'Ficha copiada!' : copied === 'err' ? 'Não foi possível copiar' : 'Copiar ficha do pokémon',
+      onClick: handleCopy,
+    },
+  ];
 
   return (
     <div className="controls">
@@ -124,14 +134,11 @@ export default function PaneControls({ account, focused, canRemove, onChange, on
         <BoostIcon />
       </button>
 
-      <button className="controls__btn" onClick={handleCopy} title="Copiar ficha do pokémon equipado">
-        {copied === 'ok' ? '✓' : copied === 'err' ? '⚠' : '📋'}
-      </button>
-
       <span className="controls__spacer" />
 
-      <button className="controls__btn" onClick={onReload} title="Recarregar página (F5)">⟳</button>
+      <HelpMenu actions={helpActions} />
 
+      <button className="controls__btn" onClick={onReload} title="Recarregar página (F5)">⟳</button>
       <button className={`controls__btn ${focused ? 'is-on' : ''}`} onClick={onToggleFocus} title={focused ? 'Voltar para todas' : 'Focar nesta tela'}>
         {focused ? '⤡' : '⤢'}
       </button>
