@@ -1,5 +1,4 @@
 .pokevale {
-  /* cores de status: mude aqui para ajustar tudo de uma vez */
   --vale-ok: #2e9e5b;
   --vale-warn: #d9a21b;
   --vale-no: #d9534f;
@@ -15,11 +14,9 @@
   color: var(--muted);
 }
 
-/* ---------- erros ---------- */
 .pokevale__erros { color: var(--vale-no); }
 .pokevale__erro { margin: 4px 0; }
 
-/* ---------- veredito ---------- */
 .pokevale__veredito {
   --cor: var(--vale-warn);
   padding: 12px 14px;
@@ -43,7 +40,6 @@
   opacity: 0.7;
 }
 
-/* ---------- checks ---------- */
 .pokevale__checks {
   display: grid;
   gap: 8px;
@@ -75,7 +71,6 @@
   opacity: 0.75;
 }
 
-/* ---------- dicas e avisos ---------- */
 .pokevale__dicas { margin: 0; }
 
 .pokevale__avisos {
