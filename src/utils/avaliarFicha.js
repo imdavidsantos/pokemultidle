@@ -17,8 +17,8 @@ function detectarPapel(esp) {
     .reduce((s, a) => s + a.power, 0);
   const fisico = soma('PHYSICAL');
   const especial = soma('SPECIAL');
-  if (fisico === especial) return esp.baseSpAtk > esp.baseAtk ? 'elemental' : 'físico';
-  return especial > fisico ? 'elemental' : 'físico';
+  if (fisico === especial) return esp.baseSpAtk > esp.baseAtk ? 'especial' : 'físico';
+  return especial > fisico ? 'especial' : 'físico';
 }
 
 // avaliação da ficha do pokemon
@@ -33,7 +33,7 @@ export function avaliarFicha(texto, pokedex) {
   const lendario = RARIDADES_LENDARIAS.has(esp.rarity);
   const ivSum = ficha.ivSoma || Object.values(ivs).reduce((a, b) => a + b, 0);
   const papel = detectarPapel(esp);
-  const ivChave = papel === 'elemental' ? ['spAtk', 'speed'] : ['atk', 'speed'];
+  const ivChave = papel === 'especial' ? ['spAtk', 'speed'] : ['atk', 'speed'];
   const ivChaveMin = Math.min(...ivChave.map((k) => ivs[k]));
   const aindaEvolui = esp.evolvesToId > 0;
   const limNota = aindaEvolui ? 2.9 : 3.5;
@@ -57,7 +57,7 @@ export function avaliarFicha(texto, pokedex) {
   ck(pot >= 4 ? 'ok' : pot === 3 ? 'warn' : 'no', 'Potência', `P${pot}`);
   ck(shiny ? 'ok' : 'warn', 'Shiny', shiny ? 'shiny (×3)' : 'não é shiny');
   ck(ivChaveMin >= 20 ? 'ok' : ivChaveMin >= 14 ? 'warn' : 'no', 'Papel',
-    `${papel} — precisa ${papel === 'elemental' ? 'Sp.ATK' : 'ATK'} + SPD altos`);
+    `${papel}, precisa de ${papel === 'especial' ? 'Sp.ATK' : 'ATK'} e SPD altos`);
 
   const nOk = checks.filter((c) => c.status === 'ok').length;
   const nNo = checks.filter((c) => c.status === 'no').length;
