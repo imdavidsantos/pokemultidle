@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './SettingsMenu.css';
-import { MESSAGES } from '../../utils/messages';
+import { MESSAGES } from '../../constants/messages';
 import { GearIcon } from '../../assets/icons/GearIcon';
 
 export default function SettingsMenu() {

@@ -47,7 +47,7 @@ export default function TopBar({
         aria-pressed={!!valeOpen}
         title="Avaliar se um pokémon vale a pena"
       >
-        /PokeVale
+        /PokeReview
       </button>
       <SettingsMenu />
     </header>
