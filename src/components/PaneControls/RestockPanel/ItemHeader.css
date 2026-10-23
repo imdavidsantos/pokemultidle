@@ -1,0 +1,31 @@
+.restock__topo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.restock__ico {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  object-fit: contain;
+}
+
+/* ocupa o lugar do ícone quando a imagem não carrega */
+.restock__ico--vazio {
+  display: inline-block;
+  border-radius: 6px;
+  background: var(--panel-2);
+  opacity: 0.5;
+}
+
+/* nome ao lado do ícone: corta com "…" se for comprido */
+.restock__topo .restock__nome {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -1,8 +1,9 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, useMemo } from 'react';
 import { PHONE_HEIGHT, PHONE_WIDTH, GAME_URL, VIRTUAL_HEIGHT, VIRTUAL_WIDTH, BOOST_FPS } from '../../config';
 import { copiarFicha } from '../../utils/copiarFicha';
-import { REAPPLY_EVENTS } from '../../utils/zoom';
+import { REAPPLY_EVENTS } from '../../constants/zoom';
 import { aplicarLimiteFps } from '../../utils/fpsLimit';
+import { comprarItem, listarItens } from '../../utils/restock/index';
 import './GameView.css';
 
 /**
@@ -26,6 +27,8 @@ const GameView = forwardRef(function GameView({ slot, muted, volume, zoom, phone
       }
     },
     copySheet: () => copiarFicha(webviewRef.current),
+    listItems: () => listarItens(webviewRef.current),
+    buyItem: (id, qtd) => comprarItem(webviewRef.current, id, qtd),
   }));
 
   // Aplica mute, zoom e volume no que estiver carregado agora

@@ -1,4 +1,4 @@
-import { norm } from "./pokeInfo";
+import { norm } from "../constants/pokeInfo";
 
 // cria uma Pokédex para buscar criaturas pelo ID ou pelo nome normalizado
 export function criarPokedex(json) {

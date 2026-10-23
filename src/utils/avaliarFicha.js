@@ -1,5 +1,5 @@
 import { lerFicha } from './lerFicha.js';
-import { BONUS_POT, norm, PODER_MAX_GOLPE, RARIDADES_LENDARIAS } from './pokeInfo.js';
+import { BONUS_POT, norm, PODER_MAX_GOLPE, RARIDADES_LENDARIAS } from '../constants/pokeInfo.js';
 
 
 // Fórmula do jogo (serve para conferir a ficha).

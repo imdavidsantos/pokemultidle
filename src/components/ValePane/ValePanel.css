@@ -1,6 +1,6 @@
 .valepanel {
   position: fixed;
-  top: 50px;   /* 44px da TopBar + 6px de respiro */
+  top: 40px;   /* 44px da TopBar + 6px de respiro */
   right: 6px;
   z-index: 50;
   width: 460px;

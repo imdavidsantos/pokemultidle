@@ -44,17 +44,17 @@ export default function App() {
 
   return (
     <div className="app">
-      {!focusing && (
-        <TopBar
-          layout={layout}
-          focusedSlot={null}
-          onLayout={chooseLayout}
-          huntOpen={huntOpen}
-          onToggleHunt={() => setHuntOpen((o) => !o)}
-          valeOpen={valeOpen}
-          onToggleVale={() => { setValeOpen((v) => !v); setHuntOpen(false); }}
-        />
-      )}
+      <TopBar
+        accounts={accounts}
+        layout={layout}
+        focusedSlot={focusing ? focusedSlot : null}
+        onLayout={chooseLayout}
+        onAdd={addAccount}
+        huntOpen={huntOpen}
+        onToggleHunt={() => setHuntOpen((o) => !o)}
+        valeOpen={valeOpen}
+        onToggleVale={() => { setValeOpen((v) => !v); setHuntOpen(false); }}
+      />
 
       <main
         className="app__grid"

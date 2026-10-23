@@ -2,8 +2,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 44px;
-  padding: 0 15px;
+  height: 36px;
+  padding: 0 10px;
   background: var(--panel);
   border-bottom: 1px solid var(--line);
 }
@@ -28,13 +28,14 @@
 }
 
 .topbar__tab {
-  padding: 5px 12px;
+  padding: 0 10px;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: 10px;
   background: transparent;
   color: var(--muted);
   white-space: nowrap;
   transition: background 0.15s, color 0.15s;
+  height: 30px;
 }
 .topbar__tab:hover { background: var(--panel-2); color: var(--text); }
 .topbar__tab.is-active { background: var(--panel-2); color: var(--text); border-color: var(--accent); }

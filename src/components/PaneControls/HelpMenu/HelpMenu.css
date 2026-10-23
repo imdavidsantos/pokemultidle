@@ -40,3 +40,21 @@
   font-size: 13px;
   justify-content: flex-start;
 }
+
+.help__icon { display: inline-flex; align-items: center; }
+
+.help__arrow {
+  display: inline-flex;
+  align-items: center;
+  color: var(--accent);
+  animation: help-arrow-in 0.25s ease-out;
+}
+
+@keyframes help-arrow-in {
+  from { opacity: 0; transform: translateX(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .help__arrow { animation: none; }
+}
