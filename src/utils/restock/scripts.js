@@ -2,10 +2,30 @@ import { HELPERS } from './paginaHelpers';
 
 // Lê os itens do cofre (mochila) e quanto você tem de cada um
 const SCRIPT_LISTAR = `
-(() => {
+(async () => {
   const cofre = document.querySelector('#eco-cofre');
   if (!cofre) throw new Error('Cofre não encontrado na tela do jogo');
-  return [...cofre.querySelectorAll('.eco-grade-itens button.eco-item')].map((el) => ({
+
+  const botoesItem = () => cofre.querySelectorAll('.eco-grade-itens button.eco-item');
+  const esperarAte = async (cond, ms) => {
+    const fim = Date.now() + ms;
+    while (!cond() && Date.now() < fim) await new Promise((r) => setTimeout(r, 50));
+    return cond();
+  };
+
+  // sem itens na grade = outra aba do cofre está ativa (ex.: depot): seleciona a de itens
+  if (!botoesItem().length) {
+    const abas = [...cofre.querySelectorAll('[role="tab"]')].filter((t) => !t.closest('.eco-cats'));
+    const textoDe = (t) => [t.textContent, t.id, t.getAttribute('aria-controls')].join(' ');
+    const alvo = abas.find((t) => /itens|items|mochila/i.test(textoDe(t)));
+    if (!alvo) {
+      throw new Error('Aba de itens não encontrada. Abas do cofre: ' + (abas.map((t) => t.textContent.trim()).join(' | ') || 'nenhuma'));
+    }
+    alvo.click();
+    await esperarAte(() => botoesItem().length > 0, 2000);
+  }
+
+  return [...botoesItem()].map((el) => ({
     id: el.dataset.chave,
     nome: el.title || el.dataset.chave,
     qtd: Number((el.querySelector('.eco-item-q')?.textContent ?? '').replace(/[^\\d]/g, '')) || 0,
