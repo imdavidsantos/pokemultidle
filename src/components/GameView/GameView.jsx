@@ -1,16 +1,17 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, useMemo } from 'react';
 import { PHONE_HEIGHT, PHONE_WIDTH, GAME_URL, VIRTUAL_HEIGHT, VIRTUAL_WIDTH, BOOST_FPS } from '../../config';
-import { copiarFicha } from '../../utils/copiarFicha';
-import { REAPPLY_EVENTS } from '../../constants/zoom';
+import { comprarItem, listarItens } from '../../utils/restock';
+import { venderDepot } from '../../utils/depot';
 import { aplicarLimiteFps } from '../../utils/fpsLimit';
-import { comprarItem, listarItens } from '../../utils/restock/index';
+import { REAPPLY_EVENTS } from '../../constants/zoom';
+import { copiarFicha } from '../../utils/copiarFicha';
 import './GameView.css';
 
 /**
  * Renderiza o jogo numa "tela de PC" virtual (1920 de largura, altura proporcional ao painel)
  * e a ajusta com CSS para caber no painel. Cada conta usa uma sessão própria (partition).
  */
-const GameView = forwardRef(function GameView({ slot, muted, volume, zoom, phone, boost, focused }, ref) {
+const GameView = forwardRef(function GameView({ slot, muted, volume, zoom, phone, boost, focused, children }, ref) {
   const boxRef = useRef(null);
   const webviewRef = useRef(null);
   const settingsRef = useRef({ muted, volume, zoom });
@@ -29,6 +30,7 @@ const GameView = forwardRef(function GameView({ slot, muted, volume, zoom, phone
     copySheet: () => copiarFicha(webviewRef.current),
     listItems: () => listarItens(webviewRef.current),
     buyItem: (id, qtd) => comprarItem(webviewRef.current, id, qtd),
+    sellDepot: () => venderDepot(webviewRef.current),
   }));
 
   // Aplica mute, zoom e volume no que estiver carregado agora
@@ -140,6 +142,7 @@ const GameView = forwardRef(function GameView({ slot, muted, volume, zoom, phone
           className="gameview__webview"
         />
       </div>
+      {children}
     </div>
   );
 });

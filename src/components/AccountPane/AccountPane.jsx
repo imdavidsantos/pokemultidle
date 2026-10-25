@@ -32,6 +32,7 @@ export default function AccountPane({ account, hidden, focused, canRemove, onCha
         onCopySheet={handleCopySheet}
         onListItems={() => gameRef.current?.listItems()}
         onBuyItem={(id, qtd) => gameRef.current?.buyItem(id, qtd)}
+        onSellDepot={() => gameRef.current.sellDepot()}
       />
       <GameView
         key={reloadKey}

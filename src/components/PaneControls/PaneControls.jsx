@@ -11,10 +11,14 @@ import HelpMenu from './HelpMenu/HelpMenu';
 
 export default function PaneControls({
   account, focused, canRemove, onChange, onToggleFocus,
-  onRemove, onReload, onCopySheet, onListItems, onBuyItem,
+  onRemove, onReload, onCopySheet, onListItems, onBuyItem, onSellDepot,
 }) {
   const [restockOpen, setRestockOpen] = useState(false);
-  const helpActions = useHelpActions({ onCopySheet, onToggleRestock: () => setRestockOpen((o) => !o) });
+  const helpActions = useHelpActions({
+    onCopySheet,
+    onToggleRestock: () => setRestockOpen((o) => !o),
+    onSellDepot,
+  });
 
   return (
     <div className="controls">

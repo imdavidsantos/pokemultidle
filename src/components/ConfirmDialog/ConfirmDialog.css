@@ -1,0 +1,35 @@
+.confirm {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.confirm__card {
+  width: min(360px, 100%);
+  padding: 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+.confirm__titulo { margin: 0 0 8px; font-size: 15px; color: var(--text); }
+.confirm__texto { font-size: 13px; line-height: 1.45; color: var(--muted); }
+.confirm__texto b { color: var(--text); }
+.confirm__aviso { margin: 0 0 6px; color: #d29922; }
+.confirm__erro { color: #f85149; }
+
+.confirm__acoes { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.confirm__btn {
+  padding: 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel-2);
+  color: var(--text);
+}
+.confirm__btn--primary { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.confirm__btn:disabled { opacity: 0.5; cursor: progress; }
