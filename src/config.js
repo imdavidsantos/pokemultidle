@@ -1,6 +1,7 @@
 export const APP_NAME = 'Pokemultidle';
 export const GAME_URL = 'https://pokeidle.io/app';
 export const MAX_ACCOUNTS = 4;
+export const GAME_ORIGIN = new URL(GAME_URL).origin;   // https://pokeidle.io
 
 // Resolução "de PC" simulada dentro de cada tela.
 // O jogo enxerga uma janela deste tamanho e ela é reduzida visualmente para caber no painel.
@@ -9,7 +10,7 @@ export const VIRTUAL_WIDTH = 1920;
 export const VIRTUAL_HEIGHT = 1080;
 
 // Largura necessaria para o botão do helper interagir diferente
-export const WIDE_QUERY = '(min-width: 1200px)';
+export const WIDE_QUERY = '(min-width: 1350px)';
 
 // Modo boost: o jogo enxerga uma janela vertical deste tamanho
 export const PHONE_WIDTH = 500;

@@ -1,0 +1,44 @@
+.rmt {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 6px;
+  z-index: 40;
+  width: min(380px, calc(100% - 12px));
+  padding: 8px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.rmt__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.rmt__close { border: 0; background: none; color: var(--muted); cursor: pointer; }
+.rmt__close:hover { color: var(--text); }
+
+.rmt__opcoes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+
+.rmt__opcao {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 6px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 12px;
+}
+.rmt__opcao img { object-fit: contain; }
+.rmt__opcao:hover:not(:disabled) { border-color: var(--accent); }
+.rmt__opcao:disabled { opacity: 0.6; cursor: progress; }
+
+.rmt__erro { margin: 8px 2px 0; font-size: 11px; color: #f85149; word-break: break-word; }

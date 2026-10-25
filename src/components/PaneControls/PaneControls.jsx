@@ -8,16 +8,19 @@ import ZoomControl from './components/ZoomControl';
 import ModeToggles from './components/ModeToggles';
 import PaneActions from './components/PaneActions';
 import HelpMenu from './HelpMenu/HelpMenu';
+import RmtPanel from './RmtPanel/RmtPanel';
 
 export default function PaneControls({
   account, focused, canRemove, onChange, onToggleFocus,
-  onRemove, onReload, onCopySheet, onListItems, onBuyItem, onSellDepot,
+  onRemove, onReload, onCopySheet, onListItems, onBuyItem, onSellDepot, onOpenRmt,
 }) {
-  const [restockOpen, setRestockOpen] = useState(false);
+  const [painel, setPainel] = useState(null);   // null | 'restock' | 'rmt'
+  const alternar = (nome) => setPainel((p) => (p === nome ? null : nome));
   const helpActions = useHelpActions({
     onCopySheet,
-    onToggleRestock: () => setRestockOpen((o) => !o),
+    onToggleRestock: () => alternar('restock'),
     onSellDepot,
+    onToggleRmt: () => alternar('rmt'),
   });
 
   return (
@@ -38,8 +41,11 @@ export default function PaneControls({
         onRemove={onRemove}
       />
 
-      {restockOpen && (
-        <RestockPanel onList={onListItems} onBuy={onBuyItem} onClose={() => setRestockOpen(false)} />
+      {painel === 'restock' && (
+        <RestockPanel onList={onListItems} onBuy={onBuyItem} onClose={() => setPainel(null)} />
+      )}
+      {painel === 'rmt' && (
+        <RmtPanel onChoose={onOpenRmt} onClose={() => setPainel(null)} />
       )}
     </div>
   );
