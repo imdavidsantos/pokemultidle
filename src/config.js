@@ -10,7 +10,7 @@ export const VIRTUAL_WIDTH = 1920;
 export const VIRTUAL_HEIGHT = 1080;
 
 // Largura necessaria para o botão do helper interagir diferente
-export const WIDE_QUERY = '(min-width: 1350px)';
+export const WIDE_QUERY = '(min-width: 1200px)';
 
 // Modo boost: o jogo enxerga uma janela vertical deste tamanho
 export const PHONE_WIDTH = 500;

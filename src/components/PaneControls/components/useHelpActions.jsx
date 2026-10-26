@@ -28,12 +28,14 @@ export default function useHelpActions({ onCopySheet, onToggleRestock, onSellDep
       icon: icone('copy-sheet', '📋'),
       label: tipo('copy-sheet') === 'ok' ? 'Ficha copiada!' : tipo('copy-sheet') === 'err' ? 'Não foi possível copiar' : 'Copiar ficha do pokémon',
       onClick: executar('copy-sheet', onCopySheet),
+      fechaMenu: true,
     },
     {
       id: 'restock',
       icon: <StockIcon />,
       label: 'Reabastecer itens',
       onClick: onToggleRestock,
+      fechaMenu: true,
     },
     {
       id: 'sell-depot',
@@ -44,12 +46,14 @@ export default function useHelpActions({ onCopySheet, onToggleRestock, onSellDep
           ? (feedback['sell-depot'].msg || 'Não foi possível abrir a venda')
           : 'Vender todo o Depot',
       onClick: executar('sell-depot', onSellDepot),
+      fechaMenu: true,
     },
     {
       id: 'rmt',
       icon: <img src={IMG.gema} width="18" height="18" alt="" draggable={false} />,
       label: 'Vender no market RMT',
       onClick: onToggleRmt,
+      fechaMenu: true,
     },
   ];
 }

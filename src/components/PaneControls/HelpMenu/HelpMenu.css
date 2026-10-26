@@ -58,3 +58,22 @@
 @media (prefers-reduced-motion: reduce) {
   .help__arrow { animation: none; }
 }
+
+.help__sep { height: 1px; margin: 4px 0; border: 0; background: var(--line); }
+
+.help__cfg-titulo { padding: 4px 10px 2px; font-size: 12px; font-weight: 600; color: var(--text); }
+.help__cfg-dica { padding: 0 10px 6px; font-size: 11px; color: var(--muted); }
+
+.help__cfg-linha {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+}
+.help__cfg-linha:hover { background: var(--panel-2); }
+.help__cfg-linha.is-off { opacity: 0.45; cursor: not-allowed; }
+.help__cfg-linha input { accent-color: var(--accent); }
