@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell, dialog, ipcMain } = require('electron');
+const { app, BrowserWindow, shell, dialog, ipcMain, webContents } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 
@@ -8,6 +8,7 @@ if (!app.isPackaged) {
 
 const isDev = process.env.NODE_ENV === 'development';
 const ABRIR_DEVTOOLS = false;   // só vale no npm run dev; sempre mudar quando quiser abrir o devtools
+const VER_DESEMPENHO = false;   // só vale no npm run dev; sempre mudar quando quiser ver o desempenho
 
 const CHECK_INTERVAL_MS = 12 * 60 * 60 * 1000; // 12 horas
 
@@ -114,8 +115,8 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1600,
     height: 900,
-    minWidth: 900,
-    minHeight: 600,
+    minWidth: 600,
+    minHeight: 400,
     icon: path.join(__dirname, '..', 'build', 'icon.png'),
     title: `Pokemultidle ${app.getVersion()}`,
     backgroundColor: '#14161f',
@@ -154,6 +155,26 @@ app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
 app.whenReady().then(() => {
   createWindow();
+  // para ver as metricas de desempenho no cmd
+  if (isDev && VER_DESEMPENHO) {
+    setInterval(() => {
+      const metricas = app.getAppMetrics();
+      const porPid = new Map(metricas.map((m) => [m.pid, m]));
+
+      console.table(webContents.getAllWebContents().map((wc) => {
+        const m = porPid.get(wc.getOSProcessId());
+        return {
+          tipo: wc.getType(),
+          url: wc.getURL().slice(0, 45),
+          mb: m ? Math.round(m.memory.workingSetSize / 1024) : '?',
+          cpu: m ? m.cpu.percentCPUUsage.toFixed(1) : '?',
+        };
+      }));
+
+      const gpu = metricas.find((m) => m.type === 'GPU');
+      console.log('GPU cpu%:', gpu?.cpu.percentCPUUsage.toFixed(1));
+    }, 30000);
+  }
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });

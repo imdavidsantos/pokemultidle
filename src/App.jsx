@@ -1,12 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useState } from 'react';
 import TopBar from './components/TopBar/TopBar.jsx';
 import AccountPane from './components/AccountPane/AccountPane.jsx';
 import EmptySlot from './components/EmptySlot/EmptySlot.jsx';
-import ValePanel from './components/ValePane/ValePanel.jsx';
 import HuntSim from './components/HuntSim/HuntSim.jsx';
 import useAccounts from './hooks/useAccounts';
 import { MAX_ACCOUNTS } from './config';
 import './App.css';
+
+const ValePanel = lazy(() => import('./components/ValePane/ValePanel.jsx'));
 
 export default function App() {
   const { accounts, focusedSlot, layout, addAccount, removeAccount, updateAccount, setFocus, setLayout } = useAccounts();
@@ -80,7 +81,11 @@ export default function App() {
         )}
       </main>
       {huntOpen && <HuntSim onClose={() => setHuntOpen(false)} />}
-      {valeOpen && <ValePanel onClose={() => setValeOpen(false)} />}
+      {valeOpen && (
+        <Suspense fallback={null}>
+          <ValePanel onClose={() => setValeOpen(false)} />
+        </Suspense>
+      )}
     </div>
   );
 }
