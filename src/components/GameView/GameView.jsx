@@ -1,8 +1,7 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, useMemo } from 'react';
-import { PHONE_HEIGHT, PHONE_WIDTH, GAME_URL, VIRTUAL_HEIGHT, VIRTUAL_WIDTH, BOOST_FPS } from '../../config';
-import { registrarEvento, useSniperConfig } from '../../utils/sniper/sniperStore';
+import { PHONE_HEIGHT, PHONE_WIDTH, GAME_URL, VIRTUAL_HEIGHT, VIRTUAL_WIDTH } from '../../config';
+import { registrarEvento, useSniperConfig, registrarEnviador } from '../../utils/sniper/sniperStore';
 import { comprarItem, listarItens } from '../../utils/restock';
-import { aplicarLimiteFps } from '../../utils/fpsLimit';
 import { REAPPLY_EVENTS } from '../../constants/zoom';
 import { copiarFicha } from '../../utils/copiarFicha';
 import { abrirAnuncioRmt } from '../../utils/rmt';
@@ -13,7 +12,7 @@ import './GameView.css';
  * Renderiza o jogo numa "tela de PC" virtual (1920 de largura, altura proporcional ao painel)
  * e a ajusta com CSS para caber no painel. Cada conta usa uma sessão própria (partition).
  */
-const GameView = forwardRef(function GameView({ slot, muted, volume, zoom, phone, boost, focused }, ref) {
+const GameView = forwardRef(function GameView({ slot, muted, volume, zoom, phone, focused }, ref) {
   const boxRef = useRef(null);
   const webviewRef = useRef(null);
   const settingsRef = useRef({ muted, volume, zoom });
@@ -23,7 +22,7 @@ const GameView = forwardRef(function GameView({ slot, muted, volume, zoom, phone
   const sniperRef = useRef(sniper);
   sniperRef.current = sniper;
 
-  settingsRef.current = { muted, volume, zoom, boost };
+  settingsRef.current = { muted, volume, zoom };
 
   useImperativeHandle(ref, () => ({
     reload: () => {
@@ -48,12 +47,6 @@ const GameView = forwardRef(function GameView({ slot, muted, volume, zoom, phone
     try { if (wv.isAudioMuted() !== m) wv.setAudioMuted(m); } catch { /* não pronto */ }
     try { if (Math.abs(wv.getZoomFactor() - z) > 0.001) wv.setZoomFactor(z); } catch { /* não pronto */ }
     try { wv.send('pm-volume', v); } catch { /* não pronto */ }
-  }, []);
-
-  const applyFps = useCallback(() => {
-    const wv = webviewRef.current;
-    if (!wv) return;
-    aplicarLimiteFps(wv, settingsRef.current.boost ? BOOST_FPS : 0);
   }, []);
 
   // Escala da tela virtual conforme o tamanho do painel
@@ -103,7 +96,6 @@ const GameView = forwardRef(function GameView({ slot, muted, volume, zoom, phone
 
     const onReapply = () => {
       applySettings();
-      applyFps();
       setTimeout(applySettings, 300); // alguns jogos zeram o zoom logo após carregar
     };
 
@@ -114,16 +106,14 @@ const GameView = forwardRef(function GameView({ slot, muted, volume, zoom, phone
       clearInterval(timer);
       REAPPLY_EVENTS.forEach((e) => wv.removeEventListener(e, onReapply));
     };
-  }, [applySettings, applyFps]);
+  }, [applySettings]);
+
+  useEffect(() => registrarEnviador(slot, (pedido) => webviewRef.current.send('pm-loja', pedido)), [slot]);
 
   // Aplica na hora quando o usuário mexe nos controles
   useEffect(() => {
     applySettings();
   }, [muted, volume, zoom, applySettings]);
-
-  useEffect(() => {
-    applyFps();
-  }, [boost, applyFps]);
 
   useEffect(() => {
     const wv = webviewRef.current;

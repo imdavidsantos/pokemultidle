@@ -14,6 +14,16 @@ function dentroDaPagina() {
   const originalSend = WS.prototype.send;
   const emitir = (tipo, dados) => window.postMessage({ source: 'PM_TAP', tipo, dados }, '*');
 
+  // MODO DESCOBERTA: manda ao app o que o PRÓPRIO jogo envia ao servidor (e a 1ª mensagem de cada tipo
+  // recebido, mais as que parecem de loja/inventário) para descobrir como a loja de itens funciona.
+  // Depois de descobrir, troque para false. As mensagens do sniper (enviar) não entram aqui.
+  const CAPTURA = false;
+  const tiposCapturados = {};
+  const capturar = (dir, bruto) => {
+    if (!CAPTURA || typeof bruto !== 'string') return;
+    emitir('captura', { dir, t: Date.now(), msg: bruto.slice(0, 1500) });
+  };
+
   let cfg = { enabled: false, dryRun: true, rules: [], global: {} };
   let jogoWs = null;
   const saldo = { gold: -1, gemas: -1, diamonds: -1 };
@@ -65,6 +75,11 @@ function dentroDaPagina() {
       try { p = JSON.parse(ev.data); } catch (_) { return; }
       if (!p || typeof p !== 'object') return;
       contar(p);
+      if (CAPTURA) {
+        const tp = typeof p.t === 'string' ? p.t : '(sem t)';
+        const interessa = /loja|shop|store|inv|bag|compr|buy/i.test(tp) && !/^market\./.test(tp);
+        if (!tiposCapturados[tp] || interessa) { tiposCapturados[tp] = true; capturar('entrada', ev.data); }
+      }
       // o socket do jogo é o que recebe welcome/estado (evita enviar para outro socket da página)
       if (p.t === 'welcome' || p.t === 'estado' || p.estado) {
         if (jogoWs !== sock) {
@@ -90,7 +105,7 @@ function dentroDaPagina() {
     Object.assign(window.WebSocket, { CONNECTING: WS.CONNECTING, OPEN: WS.OPEN, CLOSING: WS.CLOSING, CLOSED: WS.CLOSED });
   } catch (_) { /* segue com o hook do send */ }
   // reserva: pega sockets que já existiam antes do hook
-  WS.prototype.send = function (...a) { observar(this); return originalSend.apply(this, a); };
+  WS.prototype.send = function (...a) { observar(this); capturar('saida', a[0]); return originalSend.apply(this, a); };
 
   // ---------- saldo ----------
   const numero = (v) => (typeof v === 'number' && isFinite(v) && v >= 0 ? v : null);
@@ -167,6 +182,7 @@ function dentroDaPagina() {
   }
 
   function processar(p) {
+    if (pedidosLoja.length) tentarResponderLoja(p);
     if (p.servidorAgora) desvio = Date.now() - Number(p.servidorAgora);
     const est = p.estado || (p.payload && p.payload.estado) || (p.t === 'estado' ? p : null);
     if (est && est.servidorAgora) desvio = Date.now() - Number(est.servidorAgora);
@@ -387,6 +403,54 @@ function dentroDaPagina() {
     log('CONFIRMADO', { id, detalhe: descricao || 'compra confirmada pelo servidor' });
   }
 
+  // ---------- loja: compra direta pelo socket ----------
+  // Mensagem do jogo: {"t":"shop.buy","kind":"ball"|"item","id":N,"qty":N}
+  const QTD_MAX_LOJA = 1000000;
+  const ESPERA_RESPOSTA_LOJA = 1500;    // quanto esperar uma resposta reconhecida antes de devolver "enviado, sem confirmação"
+  const pedidosLoja = [];               // pedidos esperando resposta, na ordem de envio: { reqId, timer }
+
+  function responderLoja(pedido, dados) {
+    clearTimeout(pedido.timer);
+    const i = pedidosLoja.indexOf(pedido);
+    if (i >= 0) pedidosLoja.splice(i, 1);
+    emitir('loja', Object.assign({ reqId: pedido.reqId }, dados));
+  }
+
+  function comprarLoja(d) {
+    const reqId = String(d.reqId || '');
+    if (!reqId) return;
+    const kind = d.kind;
+    const id = Math.floor(Number(d.id));
+    const qty = Math.floor(Number(d.qty));
+    const falha = (erro) => emitir('loja', { reqId, ok: false, erro });
+    if (kind !== 'ball' && kind !== 'item') return falha('Tipo de item inválido.');
+    if (!(id > 0) || !(qty > 0) || qty > QTD_MAX_LOJA) return falha('Id ou quantidade inválidos.');
+
+    const pedido = { reqId, timer: 0, vistos: {} };
+    // sem resposta reconhecida: considera enviado (o app confere relendo o estoque) e devolve os tipos de
+    // pacote que chegaram nesse intervalo, para descobrir qual é a resposta real do jogo
+    pedido.timer = setTimeout(
+      () => responderLoja(pedido, { ok: true, semResposta: true, vistos: Object.keys(pedido.vistos) }),
+      ESPERA_RESPOSTA_LOJA,
+    );
+    pedidosLoja.push(pedido);
+    if (!enviar({ t: 'shop.buy', kind, id, qty })) responderLoja(pedido, { ok: false, erro: 'Sem conexão com o jogo.' });
+  }
+
+  // resposta do servidor: qualquer pacote "shop.*"/"loja.*" (ou de erro) enquanto há pedido pendente.
+  // Se a resposta real do jogo for outra, ajuste aqui (veja o que a CAPTURA mostra para o shop.buy).
+  function tentarResponderLoja(p) {
+    const t = String(p.t || '');
+    for (const pd of pedidosLoja) if (Object.keys(pd.vistos).length < 12) pd.vistos[t || '(sem t)'] = true;
+    const erro = p.ok === false || !!p.erro || !!p.error || /^(erro|error)$/i.test(t) || /\.(erro|error|fail)/i.test(t);
+    if (!erro && !/^(shop|loja|store)\./i.test(t)) return;
+    const pedido = pedidosLoja[0];
+    if (!pedido) return;
+    responderLoja(pedido, erro
+      ? { ok: false, erro: String(p.msg || p.mensagem || p.erro || p.error || 'O jogo recusou a compra.') }
+      : { ok: true, resposta: t });
+  }
+
   // ---------- config vinda do app ----------
   function aplicarConfig(c) {
     cfg = {
@@ -416,6 +480,7 @@ function dentroDaPagina() {
   window.addEventListener('message', (e) => {
     const d = e.data;
     if (d && d.source === 'PM_APP' && d.tipo === 'config') aplicarConfig(d.cfg);
+    if (d && d.source === 'PM_APP' && d.tipo === 'loja') comprarLoja(d);
   });
 
   // ---------- varredura do mercado (a cada 3 s, como a extensão) ----------
@@ -451,6 +516,9 @@ function instalarGameTap() {
   });
   ipcRenderer.on('pm-sniper-config', (_e, cfg) => {               // app React -> página
     window.postMessage({ source: 'PM_APP', tipo: 'config', cfg }, '*');
+  });
+  ipcRenderer.on('pm-loja', (_e, pedido) => {                     // app React -> página: compra na loja
+    window.postMessage({ source: 'PM_APP', tipo: 'loja', ...pedido }, '*');
   });
 
   // 2) avisa o app que o preload carregou (o app responde mandando a config)

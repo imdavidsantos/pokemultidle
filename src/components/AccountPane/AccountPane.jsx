@@ -1,7 +1,8 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 import GameView from '../GameView/GameView.jsx';
 import PaneControls from '../PaneControls/PaneControls.jsx';
 import ErrorBoundary from '../ErrorBoundary/ErrorBoundary.jsx';
+import { criarOnBuy } from '../../utils/restock/lojaSocket';
 import './AccountPane.css';
 
 export default function AccountPane({ account, hidden, focused, canRemove, onChange, onToggleFocus, onRemove }) {
@@ -20,6 +21,11 @@ export default function AccountPane({ account, hidden, focused, canRemove, onCha
     await navigator.clipboard.writeText(text);
   };
 
+  const onBuyItem = useMemo(
+    () => criarOnBuy(account.slot, (id, qtd) => gameRef.current?.buyItem(id, qtd)),
+    [account.slot],
+  );
+
   return (
     <section className={`pane ${hidden ? 'pane--hidden' : ''} ${focused ? 'pane--focused' : ''}`} aria-hidden={hidden}>
       <ErrorBoundary compacto> {/* Para não quebrar o app quando estiver algo errado */}
@@ -33,7 +39,7 @@ export default function AccountPane({ account, hidden, focused, canRemove, onCha
         onReload={() => setReloadKey((k) => k + 1)}
         onCopySheet={handleCopySheet}
         onListItems={() => gameRef.current?.listItems()}
-        onBuyItem={(id, qtd) => gameRef.current?.buyItem(id, qtd)}
+        onBuyItem={onBuyItem}
         onSellDepot={() => gameRef.current.sellDepot()}
         onOpenRmt={(tipo) => gameRef.current.openRmt(tipo)}
         />
@@ -46,7 +52,6 @@ export default function AccountPane({ account, hidden, focused, canRemove, onCha
         volume={account.volume}
         zoom={account.zoom}
         phone={!!account.phone}
-        boost={!!account.boost}
         focused={focused}
       />
     </section>

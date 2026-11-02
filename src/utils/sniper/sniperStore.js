@@ -2,10 +2,8 @@ import { useSyncExternalStore } from 'react';
 import { ITENS_MERCADO } from './itensMercado';
 
 // Guarda a config do sniper POR CONTA (slot), os logs e o status ao vivo.
-// O GameView e o SniperPanel leem daqui, então não precisa passar props pelo App.
 
-// Troque para true só enquanto estiver mexendo/testando. Em produção deixe false.
-// Com false, a simulação não existe: tudo que estiver ligado compra de verdade.
+// Modo dev para simulação
 export const DEV = false;
 
 // "Quantidade infinita": um número enorme (Infinity vira null no JSON, então não serve).
@@ -124,10 +122,54 @@ function somarComprados(slot, chave, qtd) {
   }
 }
 
+// ---- compra direta na loja pelo socket ----
+// O GameView registra, por conta, a função que manda o pedido ao webview (ver registrarEnviador).
+const enviadores = {};          // slot -> (pedido) => void
+const pedidosLoja = new Map();  // reqId -> { resolve, reject, timer }
+let seqLoja = 0;
+
+export function registrarEnviador(slot, fn) {
+  enviadores[slot] = fn;
+  return () => { if (enviadores[slot] === fn) delete enviadores[slot]; };
+}
+
+// Compra { kind: 'ball' | 'item', id, qty } na conta `slot`. Resolve quando o jogo responde
+// (ou depois de 4 s sem resposta, como "enviado"); rejeita se o jogo recusar ou não responder.
+export function comprarLojaSocket(slot, { kind, id, qty }) {
+  return new Promise((resolve, reject) => {
+    const enviar = enviadores[slot];
+    if (!enviar) { reject(new Error('A conta ainda não está pronta para comprar (o jogo não carregou).')); return; }
+    const reqId = `${slot}-${Date.now()}-${++seqLoja}`;
+    const timer = setTimeout(() => {
+      pedidosLoja.delete(reqId);
+      reject(new Error('O jogo não respondeu à compra.'));
+    }, 8000);
+    pedidosLoja.set(reqId, { resolve, reject, timer });
+    try {
+      enviar({ reqId, kind, id, qty });
+    } catch (err) {
+      clearTimeout(timer);
+      pedidosLoja.delete(reqId);
+      reject(err);
+    }
+  });
+}
+
 // Chamado pelo GameView com cada evento que vem do jogo: { tipo, dados }
 export function registrarEvento(slot, ev) {
   const { tipo, dados = {} } = ev || {};
   const atualizar = (patch) => { status = { ...status, [slot]: { ...(status[slot] ?? {}), ...patch } }; };
+
+  if (tipo === 'loja') {   // resposta de uma compra na loja
+    const pedido = pedidosLoja.get(dados.reqId);
+    if (pedido) {
+      clearTimeout(pedido.timer);
+      pedidosLoja.delete(dados.reqId);
+      if (dados.ok) pedido.resolve(dados);
+      else pedido.reject(new Error(dados.erro || 'O jogo recusou a compra.'));
+    }
+    return;
+  }
 
   if (tipo === 'comprada') {
     somarComprados(slot, String(dados.chave), Number(dados.qtd) || 0);
@@ -147,6 +189,13 @@ export function registrarEvento(slot, ev) {
     for (const it of dados.itens || []) aprendidos[it.id] = it;
     catalogoLista = montarCatalogo();
     persistirItens();
+  }
+  else if (tipo === 'captura') {
+    // modo descoberta (ver CAPTURA no webview-preload.js): guarda e escreve no console do app
+    (window.__pmCaptura = window.__pmCaptura || []).push({ slot, ...dados });
+    if (window.__pmCaptura.length > 200) window.__pmCaptura.shift();   // não cresce sem parar
+    console.log(`[captura:${dados.dir}]`, dados.msg);
+    return;
   }
   else return;
 
