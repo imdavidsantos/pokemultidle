@@ -44,12 +44,12 @@
 .sniper__body { display: flex; flex-direction: column; gap: 12px; padding: 10px; overflow-y: auto; min-height: 0; }
 
 .sniper__chaves { display: flex; gap: 18px; flex-wrap: wrap; }
-.sniper__check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
+.sniper__check { display: inline-flex; align-items: center; gap: 6px; font-size: 16px; cursor: pointer; }
 
 .sniper__modo { padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; border: 1px solid var(--line); }
 .sniper__modo--off  { color: var(--muted); }
 .sniper__modo--sim  { color: #d9a21b; border-color: #d9a21b; background: rgba(217, 162, 27, 0.1); }
-.sniper__modo--real { color: #fff; border-color: #d9534f; background: #d9534f; }
+.sniper__modo--real { color: #fff; border-color: #86efac; background: #4ade80; color: black; }
 
 .sniper__status { font-size: 12px; color: var(--muted); }
 

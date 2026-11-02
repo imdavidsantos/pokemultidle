@@ -24,12 +24,11 @@ export default function ItemPicker({ nome, itemId, onChange }) {
     setAberto(false);
   };
 
-  const escolhido = itemId ? catalogo.find((i) => i.id === itemId) : null;
-
   return (
-    <div className="sniper__picker">
+    <div className="sniper__picker" style={{ flex: 1, minWidth: 0 }}>
       <input
         className="sniper__input sniper__picker-input"
+        style={{ width: '100%', boxSizing: 'border-box' }}
         placeholder="Buscar item (ex.: Earth Stone)"
         value={nome || ''}
         onChange={(e) => digitar(e.target.value)}
@@ -53,11 +52,20 @@ export default function ItemPicker({ nome, itemId, onChange }) {
           ))}
         </ul>
       )}
-      <div className={`sniper__resolvido ${itemId ? 'is-ok' : nome ? 'is-erro' : ''}`}>
-        {itemId
-          ? `✓ ${escolhido ? escolhido.name : 'Item'} · #${itemId}${escolhido && escolhido.cat ? ` · ${escolhido.cat}` : ''}`
-          : nome ? '✗ Escolha um item da lista: o nome precisa ser exato.' : 'Digite para buscar na lista de itens.'}
-      </div>
+    </div>
+  );
+}
+
+// Texto de status do item (✓ escolhido / ✗ erro). Fica numa linha própria, abaixo da linha de inputs,
+// igual ao texto do pokémon. Use no RuleRow logo depois da linha do topo.
+export function ItemStatus({ nome, itemId }) {
+  const catalogo = useCatalogoItens();
+  const escolhido = itemId ? catalogo.find((i) => i.id === itemId) : null;
+  return (
+    <div className={`sniper__resolvido ${itemId ? 'is-ok' : nome ? 'is-erro' : ''}`}>
+      {itemId
+        ? `✓ ${escolhido ? escolhido.name : 'Item'} · #${itemId}${escolhido && escolhido.cat ? ` · ${escolhido.cat}` : ''}`
+        : nome ? '✗ Escolha um item da lista: o nome precisa ser exato.' : 'Digite para buscar na lista de itens.'}
     </div>
   );
 }

@@ -4,12 +4,20 @@ import { ITENS_MERCADO } from './itensMercado';
 // Guarda a config do sniper POR CONTA (slot), os logs e o status ao vivo.
 // O GameView e o SniperPanel leem daqui, então não precisa passar props pelo App.
 
+// Troque para true só enquanto estiver mexendo/testando. Em produção deixe false.
+// Com false, a simulação não existe: tudo que estiver ligado compra de verdade.
+export const DEV = false;
+
+// "Quantidade infinita": um número enorme (Infinity vira null no JSON, então não serve).
+// Assim o limite `comprados >= maxQtd` nunca é atingido, sem mexer na lógica de compra.
+export const INFINITO = 1e9;
+
 const CHAVE = 'pokemultidle-sniper-v1';
 const MAX_LOGS = 60;
 
 export const configPadrao = () => ({
   enabled: false,
-  dryRun: true,                      // simulação por padrão
+  dryRun: DEV,                       // simulação só existe em modo dev
   rules: [],
   global: { shiny: null, p5: null, nota: null },
 });
@@ -24,7 +32,7 @@ function carregar() {
     const bruto = JSON.parse(localStorage.getItem(CHAVE) || '{}');
     const contas = {};
     for (const [slot, cfg] of Object.entries(bruto.contas ?? {})) {
-      contas[slot] = { ...configPadrao(), ...cfg, enabled: false, dryRun: cfg.dryRun !== false };
+      contas[slot] = { ...configPadrao(), ...cfg, enabled: false, dryRun: DEV ? cfg.dryRun !== false : false };
     }
     return contas;
   } catch {

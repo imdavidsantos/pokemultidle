@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  desligarTudo, limparLogs, salvarConfig,
+  DEV, desligarTudo, limparLogs, salvarConfig,
   useSniperConfig, useSniperLogs, useSniperStatus,
 } from '../../utils/sniper/sniperStore';
 import RuleRow from './components/RuleRow';
@@ -22,23 +22,25 @@ export default function SniperPanel({ accounts, nomesPokemon = [], onClose }) {
   const status = useSniperStatus(slotAtual);
   const logs = useSniperLogs(slotAtual);
 
-  const mudar = (patch) => salvarConfig(slotAtual, { ...cfg, ...patch });
+  // Fora do modo dev a simulação não existe: garante dryRun sempre false.
+  const mudar = (patch) => salvarConfig(slotAtual, { ...cfg, ...patch, ...(DEV ? {} : { dryRun: false }) });
   const trocarSimulacao = (simular) => {
+    if (!DEV) return;
     if (!simular && !window.confirm(CONFIRMA_REAL)) return;
     mudar({ dryRun: simular });
   };
 
   const novaRegra = () => mudar({
-    rules: [...cfg.rules, { id: `r${Date.now()}`, active: true, tipo: 'item', alvoNome: '', maxOuro: 0, maxGemas: 0, maxQtd: 1, comprados: 0 }],
+    rules: [...cfg.rules, { id: `r${Date.now()}`, active: true, tipo: 'item', alvoNome: '', maxOuro: 0, maxGemas: 0, maxQtd: 1, infinito: false, comprados: 0 }],
   });
   const editarRegra = (id, patch) => mudar({ rules: cfg.rules.map((r) => (r.id === id ? { ...r, ...patch } : r)) });
   const removerRegra = (id) => mudar({ rules: cfg.rules.filter((r) => r.id !== id) });
 
-  const modo = !cfg.enabled ? 'off' : cfg.dryRun ? 'sim' : 'real';
+  const modo = !cfg.enabled ? 'off' : DEV && cfg.dryRun ? 'sim' : 'real';
   const MODO_TXT = {
-    off: 'Desligado: nada é lido nem comprado nesta conta.',
+    off: 'Desligado: compra automatica não está ativa.',
     sim: 'Simulação: só registra o que compraria. Nada é gasto.',
-    real: 'COMPRA REAL ativa nesta conta.',
+    real: 'Compra automatica ativa.',
   };
   const saldo = status.saldo;
 
@@ -79,10 +81,12 @@ export default function SniperPanel({ accounts, nomesPokemon = [], onClose }) {
                 <input type="checkbox" checked={cfg.enabled} onChange={(e) => mudar({ enabled: e.target.checked })} />
                 <b>Ligado</b>
               </label>
-              <label className="sniper__check">
-                <input type="checkbox" checked={cfg.dryRun} onChange={(e) => trocarSimulacao(e.target.checked)} />
-                <b>Modo simulação</b>
-              </label>
+              {DEV && (
+                <label className="sniper__check">
+                  <input type="checkbox" checked={cfg.dryRun} onChange={(e) => trocarSimulacao(e.target.checked)} />
+                  <b>Modo simulação</b>
+                </label>
+              )}
             </div>
 
             <div className={`sniper__modo sniper__modo--${modo}`}>{MODO_TXT[modo]}</div>

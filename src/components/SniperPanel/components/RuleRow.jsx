@@ -1,19 +1,25 @@
 import React from 'react';
 import CampoNum from './CampoNum';
-import ItemPicker from './ItemPicker';
+import CampoOuro from './CampoOuro';
+import ItemPicker, { ItemStatus } from './ItemPicker';
 import ScanInfo from './ScanInfo';
+import BotaoInfinito from './BotaoInfinito';
+
+// Campos em grade: preenchem a largura e quebram de linha sozinhos.
+const GRADE = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(96px, 1fr))', gap: 8, alignItems: 'start' };
 
 // Uma regra: "compre este item/pokémon até este preço, no máximo X unidades".
 export default function RuleRow({ regra, scan, ligado, onChange, onRemove }) {
+  const infinito = !!regra.infinito;
   const limite = regra.maxQtd || 1;
   const ehItem = regra.tipo === 'item';
   const semAlvo = ehItem ? !regra.alvoId : !String(regra.alvoNome || '').trim();
   const semTeto = !(regra.maxOuro > 0) && !(regra.maxGemas > 0);
-  const esgotada = (regra.comprados || 0) >= limite;
+  const esgotada = !infinito && (regra.comprados || 0) >= limite;
 
   return (
     <div className={`sniper__regra ${regra.active ? '' : 'is-off'}`}>
-      <div className="sniper__linha sniper__linha--topo">
+      <div className="sniper__linha sniper__linha--topo" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <input
           type="checkbox"
           checked={!!regra.active}
@@ -32,29 +38,41 @@ export default function RuleRow({ regra, scan, ligado, onChange, onRemove }) {
         {ehItem ? (
           <ItemPicker nome={regra.alvoNome} itemId={regra.alvoId} onChange={onChange} />
         ) : (
-          <div className="sniper__picker">
+          <div className="sniper__picker" style={{ flex: 1, minWidth: 0 }}>
             <input
               className="sniper__input sniper__picker-input"
               list="sniper-pokemon"
               placeholder="Nome do pokémon (ex.: Dratini)"
               value={regra.alvoNome || ''}
+              style={{ width: '100%', boxSizing: 'border-box' }}
               onChange={(e) => onChange({ alvoNome: e.target.value, alvoId: null })}
             />
-            <div className="sniper__resolvido">Compara com o nome do pokémon anunciado (trecho do nome).</div>
           </div>
         )}
 
+        <BotaoInfinito ativo={infinito} onChange={onChange} />
         <button className="sniper__btn sniper__btn--perigo" onClick={onRemove} aria-label="Remover regra" title="Remover regra">✕</button>
       </div>
 
-      <div className="sniper__linha">
-        <CampoNum rotulo="Teto ouro (por un.)" valor={regra.maxOuro} onChange={(v) => onChange({ maxOuro: v })} />
-        <CampoNum rotulo="Teto gemas (por un.)" valor={regra.maxGemas} onChange={(v) => onChange({ maxGemas: v })} />
-        <CampoNum rotulo="Qtd máxima" valor={regra.maxQtd} largura={70} onChange={(v) => onChange({ maxQtd: Math.max(1, v) })} />
-        <div className="sniper__campo">
+      {ehItem
+        ? <ItemStatus nome={regra.alvoNome} itemId={regra.alvoId} />
+        : <div className="sniper__resolvido">Compara com o nome do pokémon anunciado (trecho do nome).</div>}
+
+      <div style={GRADE}>
+        <CampoOuro rotulo="Teto ouro (por un.)" valor={regra.maxOuro} onChange={(v) => onChange({ maxOuro: v })} />
+        <CampoNum rotulo="Teto gemas (por un.)" valor={regra.maxGemas} largura="100%" onChange={(v) => onChange({ maxGemas: v })} />
+        <CampoNum
+          rotulo="Qtd máxima"
+          valor={infinito ? 0 : regra.maxQtd}
+          largura="100%"
+          disabled={infinito}
+          placeholder={infinito ? '∞' : '0'}
+          onChange={(v) => onChange({ maxQtd: Math.max(1, v) })}
+        />
+        <div className="sniper__campo" style={{ minWidth: 0 }}>
           Comprados
           <span className="sniper__comprados">
-            {regra.comprados || 0}/{limite}
+            {regra.comprados || 0}{infinito ? '' : `/${limite}`}
             <button className="sniper__btn" onClick={() => onChange({ comprados: 0, zerarEm: Date.now() })} title="Zerar o contador">zerar</button>
           </span>
         </div>
