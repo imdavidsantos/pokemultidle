@@ -13,6 +13,10 @@ export const INFINITO = 1e9;
 const CHAVE = 'pokemultidle-sniper-v1';
 const MAX_LOGS = 60;
 
+// Status que são só ruído interno do sniper: nem entram no registro
+// (assim também não ocupam as 60 vagas e empurram eventos úteis para fora).
+const LOGS_IGNORADOS = new Set(['REFORCO', 'DISPARADO']);
+
 export const configPadrao = () => ({
   enabled: false,
   dryRun: DEV,                       // simulação só existe em modo dev
@@ -176,7 +180,10 @@ export function registrarEvento(slot, ev) {
     return;
   }
 
-  if (tipo === 'log') logs = { ...logs, [slot]: [{ ...dados }, ...(logs[slot] ?? [])].slice(0, MAX_LOGS) };
+  if (tipo === 'log') {
+    if (LOGS_IGNORADOS.has(dados.status)) return;
+    logs = { ...logs, [slot]: [{ ...dados }, ...(logs[slot] ?? [])].slice(0, MAX_LOGS) };
+  }
   else if (tipo === 'preload') status = { ...status, [slot]: { preload: true } };   // página nova: recomeça o diagnóstico
   else if (tipo === 'instalado') atualizar({ instalado: true });
   else if (tipo === 'pronto') atualizar({ pronto: true, socket: !!dados.socket || !!status[slot]?.socket });

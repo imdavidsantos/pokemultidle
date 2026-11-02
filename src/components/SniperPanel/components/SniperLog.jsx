@@ -2,27 +2,31 @@ import React from 'react';
 
 const CLASSE = {
   CONFIRMADO: 'ok',
-  DISPARADO: 'info',
-  REFORCO: 'info',
   AGENDADO: 'info',
   SIMULADO: 'sim',
+  PERDIDO: 'warn',
   SALDO_INSUFICIENTE: 'warn',
   SEM_CONEXAO: 'erro',
 };
+
+// Status que são só ruído interno: não aparecem no registro.
+const OCULTOS = new Set(['REFORCO', 'DISPARADO']);
 
 const MOEDA = { gold: 'ouro', orb: 'gemas', orbs: 'gemas' };
 const hora = (t) => new Date(t).toLocaleTimeString('pt-BR');
 
 export default function SniperLog({ logs, onLimpar }) {
+  const visiveis = logs.filter((l) => !OCULTOS.has(l.status));
+
   return (
     <div>
       <div className="sniper__titulo-sec">
         <h3>Registro</h3>
-        {logs.length > 0 && <button className="sniper__btn" onClick={onLimpar}>limpar</button>}
+        {visiveis.length > 0 && <button className="sniper__btn" onClick={onLimpar}>limpar</button>}
       </div>
-      {logs.length === 0 && <p className="sniper__vazio">Nada ainda.</p>}
+      {visiveis.length === 0 && <p className="sniper__vazio">Nada ainda.</p>}
       <div className="sniper__log">
-        {logs.map((l, i) => (
+        {visiveis.map((l, i) => (
           <div key={`${l.t}-${l.id}-${i}`} className="sniper__log-item">
             <span className="sniper__hora">{hora(l.t)}</span>
             <span className={`sniper__selo sniper__selo--${CLASSE[l.status] || 'info'}`}>{l.status}</span>

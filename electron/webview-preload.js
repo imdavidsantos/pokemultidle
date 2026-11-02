@@ -37,6 +37,7 @@ function dentroDaPagina() {
   const usado = {};                     // chave da regra -> unidades já disparadas
   const zerouEm = {};                   // chave da regra -> último carimbo "zerarEm" aplicado
   let ultimaCompra = null;
+  const infoCompra = {};                // idOferta -> dados da compra (nome, preço, qtd) para o registro
   let ciclo = 0;
   let ultimoSaldo = '';
   let ultimoSaldoEm = 0;
@@ -374,7 +375,8 @@ function dentroDaPagina() {
     const compravelEm = Number(an.compravelEm || an.compravelEmMs || 0);
     const espera = compravelEm - agoraSrv();
     const base = espera > 50 ? espera + 100 : 0;
-    if (base) log('AGENDADO', Object.assign({}, dados, { detalhe: 'libera em ' + Math.ceil(espera / 1000) + 's' }));
+    infoCompra[id] = dados;
+    log('AGENDADO', Object.assign({}, dados, { detalhe: base ? 'libera em ' + Math.ceil(espera / 1000) + 's' : 'comprando agora' }));
 
     const agendados = [];
     if (base === 0) disparar(id, qtd, preco, moedaRaw, dados, false);   // já liberado: sai na hora
@@ -384,6 +386,11 @@ function dentroDaPagina() {
       disparar(id, qtd, preco, moedaRaw, dados, true);
       delete timers[id];
     }, base + 1400));
+    // veredito: passou a última tentativa + folga e o servidor não confirmou a compra
+    agendados.push(setTimeout(() => {
+      if (!cfg.enabled || cfg.dryRun || confirmada[id]) return;
+      log('PERDIDO', Object.assign({}, dados, { detalhe: 'outra pessoa levou ou a compra não foi confirmada' }));
+    }, base + 3400));
     timers[id] = agendados;
   }
 
@@ -391,7 +398,7 @@ function dentroDaPagina() {
     if (!cfg.enabled || cfg.dryRun || confirmada[id]) return;
     ultimaCompra = id;
     const ok = enviar({ t: 'market.comprar', id, qtd, preco, moeda: moedaRaw });
-    log(ok ? (reforco ? 'REFORCO' : 'DISPARADO') : 'SEM_CONEXAO', dados);
+    if (!ok && !reforco) log('SEM_CONEXAO', dados);   // DISPARADO/REFORCO não vão mais para o registro
   }
 
   function confirmar(descricao) {
@@ -400,7 +407,7 @@ function dentroDaPagina() {
     confirmada[id] = true;
     (timers[id] || []).forEach(clearTimeout);
     delete timers[id];
-    log('CONFIRMADO', { id, detalhe: descricao || 'compra confirmada pelo servidor' });
+    log('CONFIRMADO', Object.assign({}, infoCompra[id], { id, detalhe: descricao || 'compra confirmada pelo servidor' }));
   }
 
   // ---------- loja: compra direta pelo socket ----------
