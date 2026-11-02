@@ -42,7 +42,7 @@ export default function PaneControls({
       />
 
       {painel === 'restock' && (
-        <RestockPanel onList={onListItems} onBuy={onBuyItem} onClose={() => setPainel(null)} />
+        <RestockPanel chave={account.slot} onList={onListItems} onBuy={onBuyItem} onClose={() => setPainel(null)} />
       )}
       {painel === 'rmt' && (
         <RmtPanel onChoose={onOpenRmt} onClose={() => setPainel(null)} />
