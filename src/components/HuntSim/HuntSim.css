@@ -1,15 +1,16 @@
 .huntsim {
   position: fixed;
-  top: 40px;   /* 44px da TopBar + 6px de respiro */
-  right: 6px;
+  top: 32px;
+  right: 4px;
   z-index: 50;
-  min-width: 800px;
-  height: calc(100vh - 56px);
+  width: 100%;
+  max-width: 800px;
+  height: calc(100vh - 36px);
   display: flex;
   flex-direction: column;
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 2px;
   overflow: hidden;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
 }

@@ -28,7 +28,7 @@ export default function PaneControls({
       <AccountName name={account.name} onChange={onChange} />
       <VolumeControl muted={account.muted} volume={account.volume} onChange={onChange} />
       <ZoomControl zoom={account.zoom} onChange={onChange} />
-      <ModeToggles phone={account.phone} boost={account.boost} onChange={onChange} />
+      <ModeToggles phone={account.phone} onChange={onChange} />
 
       <span className="controls__spacer" />
 

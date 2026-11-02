@@ -2,13 +2,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { MAX_ACCOUNTS, STORAGE_KEY } from '../config';
 
 const defaultAccount = (slot) => ({
-  slot,                 // 1..4 — define a sessão (login) própria desta conta
+  slot,
   name: `Conta ${slot}`,
   muted: false,
   volume: 1,
   zoom: 1,
   phone: false,
-  boost: false,
 });
 
 function load() {

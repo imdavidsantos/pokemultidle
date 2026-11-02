@@ -1,5 +1,6 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, useMemo } from 'react';
 import { PHONE_HEIGHT, PHONE_WIDTH, GAME_URL, VIRTUAL_HEIGHT, VIRTUAL_WIDTH, BOOST_FPS } from '../../config';
+import { registrarEvento, useSniperConfig } from '../../utils/sniper/sniperStore';
 import { comprarItem, listarItens } from '../../utils/restock';
 import { aplicarLimiteFps } from '../../utils/fpsLimit';
 import { REAPPLY_EVENTS } from '../../constants/zoom';
@@ -17,6 +18,10 @@ const GameView = forwardRef(function GameView({ slot, muted, volume, zoom, phone
   const webviewRef = useRef(null);
   const settingsRef = useRef({ muted, volume, zoom });
   const [panel, setPanel] = useState({ width: 0, height: 0 });
+
+  const sniper = useSniperConfig(slot);
+  const sniperRef = useRef(sniper);
+  sniperRef.current = sniper;
 
   settingsRef.current = { muted, volume, zoom, boost };
 
@@ -119,6 +124,31 @@ const GameView = forwardRef(function GameView({ slot, muted, volume, zoom, phone
   useEffect(() => {
     applyFps();
   }, [boost, applyFps]);
+
+  useEffect(() => {
+    const wv = webviewRef.current;
+    if (!wv) return undefined;
+    const enviar = () => { try { wv.send('pm-sniper-config', sniperRef.current); } catch { /* não pronto */ } };
+    const onIpc = (e) => {
+      if (e.channel !== 'pm-tap') return;
+      const ev = e.args[0];
+      registrarEvento(slot, ev);
+      if (ev?.tipo === 'preload' || ev?.tipo === 'instalado') enviar();   // o jogo avisou: manda a config
+    };
+    wv.addEventListener('ipc-message', onIpc);
+    registrarEvento(slot, { tipo: 'erro', dados: { etapa: 'teste', msg: 'GameView ligado' } });
+    wv.addEventListener('dom-ready', enviar);
+    return () => {
+      wv.removeEventListener('ipc-message', onIpc);
+      registrarEvento(slot, { tipo: 'erro', dados: { etapa: 'teste', msg: 'GameView ligado' } });
+      wv.removeEventListener('dom-ready', enviar);
+    };
+  }, [slot]);
+
+  // reenvia quando você muda algo no painel
+  useEffect(() => {
+    try { webviewRef.current?.send('pm-sniper-config', sniper); } catch { /* não pronto */ }
+  }, [sniper]);
 
   const preload = window.pokemultidle?.webviewPreload;
 

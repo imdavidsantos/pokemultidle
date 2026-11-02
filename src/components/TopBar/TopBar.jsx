@@ -12,7 +12,7 @@ const LAYOUTS = [
 export default function TopBar({
   layout, focusedSlot, onLayout,
   huntOpen, onToggleHunt,
-  valeOpen, onToggleVale,
+  sniperOpen, onToggleSniper
 }) {
   return (
     <header className="topbar">
@@ -39,15 +39,15 @@ export default function TopBar({
         aria-pressed={!!huntOpen}
         title="Abrir o simulador de hunt"
       >
-        /Hunt
+        Hunt
       </button>
       <button
-        className={`topbar__tab topbar__hunt ${valeOpen ? 'is-active' : ''}`}
-        onClick={onToggleVale}
-        aria-pressed={!!valeOpen}
-        title="Avaliar se um pokémon vale a pena"
-      >
-        /PokeReview
+         className={`topbar__tab topbar__hunt ${sniperOpen ? 'is-active' : ''}`}
+         onClick={onToggleSniper}
+         aria-pressed={!!sniperOpen}
+         title="Configurar a compra automática"
+       >
+         Sniper
       </button>
       <SettingsMenu />
     </header>
