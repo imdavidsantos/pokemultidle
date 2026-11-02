@@ -3,11 +3,14 @@ import { clampQtd, pausa } from '../../../../utils/restock/loja';
 
 // Reabastecimento automático: de tempos em tempos lê o estoque (via `carregar` do useRestock)
 // e, se o item escolhido estiver abaixo do limite, compra sozinho com o mesmo `onBuy` do botão "Comprar".
+// Roda em SEGUNDO PLANO: este hook é usado no PaneControls (sempre montado, um por conta), não no painel.
 
 const CHAVE = 'pokemultidle-restock-auto-v1';
 const RESTAURAR_LIGADO = true;    // true: lembra o que estava ligado ao fechar/reabrir o painel
-const INTERVALO_LISTA = 30 * 60 * 1000;   // 30 min: a cada quanto tempo relê o estoque (e verifica) enquanto algum grupo está ligado
+export const INTERVALO_LISTA = 30 * 60 * 1000;   // 30 min: a cada quanto tempo relê o estoque (e verifica) enquanto algum grupo está ligado
 const ESPERA_COMPRA = 20000;      // intervalo mínimo entre duas compras do mesmo grupo
+const ESPERA_APOS_PRONTO = 5000;  // depois que o jogo conecta, espera a tela montar antes de ler o estoque
+const RETRY_MS = 60 * 1000;       // leitura falhou/veio vazia: tenta de novo em 1 min (não espera os 30 min)
 export const MAX_LIMITE = 1000000;
 
 // Como cada grupo é reconhecido (pelo NOME do item). Ajuste os padrões aqui se precisar.
@@ -55,7 +58,7 @@ function resolver(grupo, cfgGrupo, itens, quedas) {
   return [...cands].sort((a, b) => ((quedas[b.id] || 0) - (quedas[a.id] || 0)) || (b.qtd - a.qtd))[0];
 }
 
-export default function useAutoRestock({ itens, carregar, onBuy, chave = 'default' }) {
+export default function useAutoRestock({ itens, erro, carregar, onBuy, chave = 'default', pronto = true }) {
   const [cfg, setCfg] = useState(() => lerConfig(chave));
   const [estados, setEstados] = useState({});   // { [grupo]: { situacao, msg } }
   const [quedas, setQuedas] = useState({});     // { [itemId]: unidades gastas desde que abriu }
@@ -64,6 +67,7 @@ export default function useAutoRestock({ itens, carregar, onBuy, chave = 'defaul
   const itensRef = useRef(itens); itensRef.current = itens;
   const carregarRef = useRef(carregar); carregarRef.current = carregar;
   const onBuyRef = useRef(onBuy); onBuyRef.current = onBuy;
+  const prontoRef = useRef(pronto); prontoRef.current = pronto;   // o jogo está conectado (logado)?
   const quedasRef = useRef({});
   const ultimo = useRef({});          // última quantidade vista de cada item
   const ultimaCompra = useRef({});    // grupo -> carimbo da última tentativa
@@ -89,9 +93,9 @@ export default function useAutoRestock({ itens, carregar, onBuy, chave = 'defaul
   const marcar = (id, patch) => setEstados((s) => ({ ...s, [id]: { ...s[id], ...patch } }));
 
   const avaliar = useCallback(async () => {
-    if (ocupado.current) return;
+    if (ocupado.current || !prontoRef.current) return;   // sem jogo conectado não compra
     const lista = itensRef.current;
-    if (!lista) return;
+    if (!lista || !lista.length) return;                 // leitura falhou/vazia: não conclui nada (o retry cuida)
 
     for (const g of GRUPOS) {
       const c = cfgRef.current[g.id];
@@ -131,13 +135,29 @@ export default function useAutoRestock({ itens, carregar, onBuy, chave = 'defaul
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { avaliar(); }, [itens, gatilho]);
 
+  const ligado = GRUPOS.some((g) => cfg[g.id].ativo);
+
   // mantém o estoque atualizado enquanto algum grupo estiver ligado
   useEffect(() => {
-    if (!GRUPOS.some((g) => cfg[g.id].ativo)) return undefined;
+    if (!ligado) return undefined;
     const t = setInterval(() => carregarRef.current(), INTERVALO_LISTA);
     return () => clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gatilho]);
+  }, [ligado]);
+
+  // jogo conectou (ou reconectou depois de recarregar a tela): lê o estoque assim que ele estiver montado
+  useEffect(() => {
+    if (!ligado || !pronto) return undefined;
+    const t = setTimeout(() => carregarRef.current(), ESPERA_APOS_PRONTO);
+    return () => clearTimeout(t);
+  }, [ligado, pronto]);
+
+  // leitura que falhou ou veio vazia: tenta de novo em 1 min, até dar certo
+  useEffect(() => {
+    if (!ligado || !pronto) return undefined;
+    if (!erro && itens && itens.length) return undefined;
+    const t = setTimeout(() => carregarRef.current(), RETRY_MS);
+    return () => clearTimeout(t);
+  }, [ligado, pronto, erro, itens]);
 
   const atualizar = useCallback((id, patch) => {
     setCfg((c) => ({ ...c, [id]: { ...c[id], ...patch } }));

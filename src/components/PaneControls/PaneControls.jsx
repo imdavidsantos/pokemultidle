@@ -3,6 +3,9 @@ import './PaneControls.css';
 import useHelpActions from './components/useHelpActions';
 import VolumeControl from './components/VolumeControl';
 import RestockPanel from './RestockPanel/RestockPanel';
+import useRestock from './RestockPanel/components/useRestock';
+import useAutoRestock from './RestockPanel/components/useAutoRestock';
+import { useSniperStatus } from '../../utils/sniper/sniperStore';
 import AccountName from './components/AccountName';
 import ZoomControl from './components/ZoomControl';
 import ModeToggles from './components/ModeToggles';
@@ -16,6 +19,19 @@ export default function PaneControls({
 }) {
   const [painel, setPainel] = useState(null);   // null | 'restock' | 'rmt'
   const alternar = (nome) => setPainel((p) => (p === nome ? null : nome));
+
+  // O estoque e o reabastecimento automático ficam AQUI (sempre montado, uma vez por conta), e não dentro
+  // do painel: assim o automático continua rodando em segundo plano com o painel fechado.
+  const restock = useRestock({ onList: onListItems, onBuy: onBuyItem });
+  const jogoPronto = !!useSniperStatus(account.slot).socket;   // jogo conectado/logado
+  const auto = useAutoRestock({
+    itens: restock.itens,
+    erro: restock.erro,
+    carregar: restock.carregar,
+    onBuy: onBuyItem,
+    chave: account.slot,
+    pronto: jogoPronto,
+  });
   const helpActions = useHelpActions({
     onCopySheet,
     onToggleRestock: () => alternar('restock'),
@@ -42,7 +58,7 @@ export default function PaneControls({
       />
 
       {painel === 'restock' && (
-        <RestockPanel chave={account.slot} onList={onListItems} onBuy={onBuyItem} onClose={() => setPainel(null)} />
+        <RestockPanel restock={restock} auto={auto} onClose={() => setPainel(null)} />
       )}
       {painel === 'rmt' && (
         <RmtPanel onChoose={onOpenRmt} onClose={() => setPainel(null)} />

@@ -1,13 +1,18 @@
-import React from 'react';
-import useRestock from './components/useRestock';
+import React, { useEffect } from 'react';
 import RestockItem from './components/RestockItem';
 import AutoRestock from './components/AutoRestock';
-import useAutoRestock, { temPreco } from './components/useAutoRestock';
+import { temPreco } from './components/useAutoRestock';
 import './RestockPanel.css';
 
-function Painel({ onList, onBuy, onClose, chave }) {
-  const { itens, erro, qtds, status, msgs, setQtd, normalizarQtd, comprar, carregar } = useRestock({ onList, onBuy });
-  const { grupos, atualizar } = useAutoRestock({ itens, carregar, onBuy, chave });
+// O painel agora é só a TELA do estoque. A lógica (ler itens, comprar, automático) mora no
+// PaneControls, que fica sempre montado: por isso o automático roda com este painel fechado.
+//   restock = retorno do useRestock    auto = retorno do useAutoRestock
+export default function RestockPanel({ restock, auto, onClose }) {
+  const { itens, erro, qtds, status, msgs, setQtd, normalizarQtd, comprar, carregar } = restock;
+  const { grupos, atualizar } = auto;
+
+  // ao abrir o painel, atualiza o estoque que aparece na tela
+  useEffect(() => { carregar(); }, [carregar]);
 
   return (
     <div className="restock" role="dialog" aria-label="Estoque de Itens">
@@ -38,15 +43,4 @@ function Painel({ onList, onBuy, onClose, chave }) {
       </div>
     </div>
   );
-}
-
-// `chave` identifica a conta (use o slot). Ela separa o auto-reabastecimento de cada conta:
-// a config é salva por chave e o painel é remontado do zero quando a chave muda,
-// então nada (estado, estoque lido, timers) vaza de uma conta para a outra.
-export default function RestockPanel({ onList, onBuy, onClose, chave }) {
-  if (chave === undefined || chave === null || chave === '') {
-    console.warn('RestockPanel sem `chave`: passe chave={slot} para o reestoque automático ficar separado por conta.');
-  }
-  const id = String(chave ?? 'default');
-  return <Painel key={id} chave={id} onList={onList} onBuy={onBuy} onClose={onClose} />;
 }

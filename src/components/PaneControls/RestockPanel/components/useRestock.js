@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { QTD_MIN, clampQtd, pausa } from '../../../../utils/restock/loja';
 
 /**
@@ -16,18 +16,28 @@ export default function useRestock({ onList, onBuy }) {
   const onListRef = useRef(onList);
   onListRef.current = onList;
 
-  const carregar = useCallback(async () => {
-    try {
-      setErro('');
-      setItens((await onListRef.current()) ?? []);
-    } catch (err) {
-      console.warn('Falha ao listar itens:', err);
-      setErro(err?.message || 'Não foi possível ler os itens do jogo.');
-      setItens([]);
-    }
+  // Uma leitura por vez: se já tem uma em andamento (ex.: o automático e você abrindo o painel
+  // ao mesmo tempo), reaproveita a mesma em vez de rodar o script no jogo duas vezes.
+  const lendo = useRef(null);
+  const carregar = useCallback(() => {
+    if (lendo.current) return lendo.current;
+    lendo.current = (async () => {
+      try {
+        setErro('');
+        setItens((await onListRef.current()) ?? []);
+      } catch (err) {
+        console.warn('Falha ao listar itens:', err);
+        setErro(err?.message || 'Não foi possível ler os itens do jogo.');
+        setItens([]);
+      } finally {
+        lendo.current = null;
+      }
+    })();
+    return lendo.current;
   }, []);
 
-  useEffect(() => { carregar(); }, [carregar]);
+  // A leitura inicial NÃO é mais feita aqui: este hook agora fica sempre montado (roda em segundo plano),
+  // e ler no start do app, antes do jogo carregar, só daria erro. Quem lê é o painel (ao abrir) e o automático.
 
   const marcar = (id, valor) => {
     setStatus((s) => ({ ...s, [id]: valor }));

@@ -1,6 +1,6 @@
 import React from 'react';
 import { QTD_MAX } from '../../../../utils/restock/loja';
-import { MAX_LIMITE } from './useAutoRestock';
+import { INTERVALO_LISTA, MAX_LIMITE } from './useAutoRestock';
 
 const GOLD = { borderColor: '#f5b800', color: '#f5b800', background: 'rgba(245, 184, 0, 0.12)' };
 const soDigitos = (texto, max) => {
@@ -89,7 +89,7 @@ export default function AutoRestock({ grupos, atualizar }) {
       <b>Reabastecimento automático</b>
       {grupos.map((g) => <Linha key={g.id} g={g} atualizar={atualizar} />)}
       <small style={{ opacity: 0.7 }}>
-        Compra sozinho, sem confirmação, enquanto este painel estiver aberto. Se uma compra falhar, aquele item é desligado.
+        {`Roda em segundo plano (confere o estoque a cada ${Math.round(INTERVALO_LISTA / 60000)} min), mesmo com este painel fechado, enquanto o app estiver aberto e a conta logada. Compra sozinho, sem confirmação. Se uma compra falhar, aquele item é desligado.`}
       </small>
     </section>
   );
