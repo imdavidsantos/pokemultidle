@@ -1,10 +1,14 @@
 import React from 'react';
 import useRestock from './components/useRestock';
 import RestockItem from './components/RestockItem';
+import AutoRestock from './components/AutoRestock';
+import useAutoRestock, { temPreco } from './components/useAutoRestock';
 import './RestockPanel.css';
 
-export default function RestockPanel({ onList, onBuy, onClose }) {
-  const { itens, erro, qtds, status, msgs, setQtd, normalizarQtd, comprar } = useRestock({ onList, onBuy });
+// `chave` separa a config do auto-reabastecimento por conta (ex.: o slot). Use key={slot} ao montar o painel.
+export default function RestockPanel({ onList, onBuy, onClose, chave = 'default' }) {
+  const { itens, erro, qtds, status, msgs, setQtd, normalizarQtd, comprar, carregar } = useRestock({ onList, onBuy });
+  const { grupos, atualizar } = useAutoRestock({ itens, carregar, onBuy, chave });
 
   return (
     <div className="restock" role="dialog" aria-label="Estoque de Itens">
@@ -13,12 +17,14 @@ export default function RestockPanel({ onList, onBuy, onClose }) {
         <button className="restock__close" onClick={onClose} aria-label="Fechar">✕</button>
       </div>
 
+      <AutoRestock grupos={grupos} atualizar={atualizar} />
+
       {itens === null && <p className="restock__msg">Lendo itens do jogo…</p>}
       {erro && <p className="restock__msg restock__msg--erro">{erro}</p>}
       {itens?.length === 0 && !erro && <p className="restock__msg">Nenhum item encontrado.</p>}
 
       <div className="restock__grid">
-        {itens?.map((item) => (
+        {itens?.filter(temPreco).map((item) => (
           <RestockItem
             key={item.id}
             item={item}

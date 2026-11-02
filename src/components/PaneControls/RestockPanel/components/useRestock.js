@@ -66,5 +66,5 @@ export default function useRestock({ onList, onBuy }) {
     }
   };
 
-  return { itens, erro, qtds, status, msgs, setQtd, normalizarQtd, comprar };
+  return { itens, erro, qtds, status, msgs, setQtd, normalizarQtd, comprar, carregar };
 }
