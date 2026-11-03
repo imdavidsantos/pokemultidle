@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { criarPokedex } from '../../utils/criarPokedex.js';
+import { criarPokedex } from '../../utils/pokemon/criarPokedex.js';
 import pokedexJson from '../../data/pokedex.json';
 import PokeVale from './PokeVale/PokeVale.jsx';
 import './ValePanel.css';

@@ -2,8 +2,8 @@ import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useLayo
 import { PHONE_HEIGHT, PHONE_WIDTH, GAME_URL, VIRTUAL_HEIGHT, VIRTUAL_WIDTH } from '../../config';
 import { registrarEvento, useSniperConfig, registrarEnviador } from '../../utils/sniper/sniperStore';
 import { comprarItem, listarItens } from '../../utils/restock';
+import { copiarFicha } from '../../utils/pokemon/copiarFicha';
 import { REAPPLY_EVENTS } from '../../constants/zoom';
-import { copiarFicha } from '../../utils/copiarFicha';
 import { abrirAnuncioRmt } from '../../utils/rmt';
 import { venderDepot } from '../../utils/depot';
 import './GameView.css';
