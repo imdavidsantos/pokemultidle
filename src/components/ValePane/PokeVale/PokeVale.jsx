@@ -1,6 +1,6 @@
-import { avaliarFicha } from '../../../utils/AvaliarFicha';
 import { useMemo } from 'react';
 import './PokeVale.css';
+import { avaliarFicha } from '../../../utils/pokemon/avaliarFicha';
 import { ICONE, VEREDITO } from '../../../constants/pokeInfo';
 
 export default function PokeVale({ ficha, pokedex }) {
