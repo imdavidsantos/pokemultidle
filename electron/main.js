@@ -1,4 +1,6 @@
 const { app, BrowserWindow, shell, dialog, ipcMain, webContents } = require('electron');
+const { registrarCanaisTwitch } = require('./twitchCanais');
+const { registrarLoginTwitch } = require('./twitchLogin');
 const path = require('path');
 const fs = require('fs');
 
@@ -376,6 +378,9 @@ app.whenReady().then(() => {
   const avisos = verificarSaude();   // lê o que ficou da última execução
   createWindow();
   if (avisos.length) mostrarAvisos(avisos);   // sem await: não segura a abertura do app
+
+  registrarLoginTwitch(); // login da twitch
+  registrarCanaisTwitch(log); // lista de canais oficiais do Bônus Twitch
 
   // para ver as metricas de desempenho no cmd
   if (isDev && VER_DESEMPENHO) {

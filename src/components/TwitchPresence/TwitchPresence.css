@@ -1,0 +1,13 @@
+.twitchp { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); max-width: 100%; }
+.twitchp { min-width: 0; flex: 0 1 auto; max-width: 260px; }
+.twitchp__ponto { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
+.twitchp__texto { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.twitchp--ok .twitchp__ponto { background: #2e9e5b; }
+.twitchp--parcial .twitchp__ponto { background: #d9a21b; }
+.twitchp--erro .twitchp__ponto { background: #d9534f; }
+.twitchp--erro { color: #d9534f; }
+.twitchp__btn {
+  padding: 2px 8px; border: 1px solid var(--line); border-radius: 5px;
+  background: transparent; color: var(--text); font-size: 11px; cursor: pointer;
+}
+.twitchp__btn:hover { background: var(--panel-2); }

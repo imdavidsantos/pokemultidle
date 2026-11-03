@@ -13,14 +13,6 @@ export default function VolumeControl({ muted, volume, onChange }) {
   return (
     <div className="controls__group controls__volume" ref={ref} title="Som">
       <button
-        className={`controls__btn ${muted ? 'is-on' : ''}`}
-        onClick={() => onChange({ muted: !muted })}
-        aria-pressed={!!muted}
-        title={muted ? 'Ativar som' : 'Mutar'}
-      >
-        {icone}
-      </button>
-      <button
         className={`controls__btn ${open ? 'is-on' : ''}`}
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
@@ -31,6 +23,14 @@ export default function VolumeControl({ muted, volume, onChange }) {
       </button>
       {open && (
         <div className="controls__popover" role="dialog" aria-label="Volume">
+          <button
+            className={`controls__btn ${muted ? 'is-on' : ''}`}
+            onClick={() => onChange({ muted: !muted })}
+            aria-pressed={!!muted}
+            title={muted ? 'Ativar som' : 'Mutar'}
+          >
+            {icone}
+          </button>
           <input
             className="controls__slider"
             type="range"

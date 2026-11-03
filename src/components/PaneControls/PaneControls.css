@@ -4,7 +4,7 @@
   align-items: center;
   gap: 5px;
   height: 30px;
-  padding: 2px;
+  padding: 2px 4px;
   background: var(--panel-2);
   border-bottom: 1px solid var(--line);
   flex-shrink: 0;
@@ -74,14 +74,14 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
+  padding: 2px 8px;
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 4px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
 }
 
-.controls__slider { accent-color: var(--accent); }
+.controls__slider { accent-color: var(--muted); }
 .controls__popover .controls__slider { width: 140px; }
 
 .controls__vol-value {

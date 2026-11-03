@@ -2,12 +2,18 @@ import React, { useRef, useState, useMemo } from 'react';
 import GameView from '../GameView/GameView.jsx';
 import PaneControls from '../PaneControls/PaneControls.jsx';
 import ErrorBoundary from '../ErrorBoundary/ErrorBoundary.jsx';
+import TwitchPresence from '../TwitchPresence/TwitchPresence.jsx';
+import useTwitchPresence from '../../utils/twitchPresence/useTwitchPresence.js';
+import useCanaisOficiais from '../../utils/twitchPresence/useCanaisTwitch.js';
 import { criarOnBuy } from '../../utils/restock/lojaSocket';
 import './AccountPane.css';
 
 export default function AccountPane({ account, hidden, focused, canRemove, onChange, onToggleFocus, onRemove }) {
   const gameRef = useRef(null);
   const [reloadKey, setReloadKey] = useState(0);
+
+  const canais = useCanaisOficiais();
+  const twitch = useTwitchPresence({ slot: account.slot, canais });
 
   const handleRemove = () => {
     if (window.confirm(`Remover "${account.name}" desta janela? O login fica salvo caso você a adicione de novo.`)) {
@@ -30,18 +36,20 @@ export default function AccountPane({ account, hidden, focused, canRemove, onCha
     <section className={`pane ${hidden ? 'pane--hidden' : ''} ${focused ? 'pane--focused' : ''}`} aria-hidden={hidden}>
       <ErrorBoundary compacto> {/* Para não quebrar o app quando estiver algo errado */}
         <PaneControls
-        account={account}
-        focused={focused}
-        canRemove={canRemove}
-        onChange={onChange}
-        onToggleFocus={onToggleFocus}
-        onRemove={handleRemove}
-        onReload={() => setReloadKey((k) => k + 1)}
-        onCopySheet={handleCopySheet}
-        onListItems={() => gameRef.current?.listItems()}
-        onBuyItem={onBuyItem}
-        onSellDepot={() => gameRef.current.sellDepot()}
-        onOpenRmt={(tipo) => gameRef.current.openRmt(tipo)}
+          account={account}
+          focused={focused}
+          canRemove={canRemove}
+          onChange={onChange}
+          onToggleFocus={onToggleFocus}
+          onRemove={handleRemove}
+          onReload={() => setReloadKey((k) => k + 1)}
+          onCopySheet={handleCopySheet}
+          onListItems={() => gameRef.current?.listItems()}
+          onBuyItem={onBuyItem}
+          onSellDepot={() => gameRef.current.sellDepot()}
+          onOpenRmt={(tipo) => gameRef.current.openRmt(tipo)}
+          twitch={twitch}
+          onEntrarTwitch={() => window.pokemultidle.openTwitchLogin(account.slot)}
         />
       </ErrorBoundary>
       <GameView
