@@ -1,6 +1,7 @@
 import React, { Suspense, lazy, useEffect, useState } from 'react';
 import AccountPane from './components/AccountPane/AccountPane.jsx';
 import SniperPanel from './components/SniperPanel/SniperPanel.jsx';
+import TwitchPanel from './components/TwitchPanel/TwitchPanel.jsx';
 import EmptySlot from './components/EmptySlot/EmptySlot.jsx';
 import HuntSim from './components/HuntSim/HuntSim.jsx';
 import TopBar from './components/TopBar/TopBar.jsx';
@@ -15,6 +16,7 @@ export default function App() {
   const { accounts, focusedSlot, layout, addAccount, removeAccount, updateAccount, setFocus, setLayout } = useAccounts();
   const [huntOpen, setHuntOpen] = useState(false);
   const [sniperOpen, setSniperOpen] = useState(false);
+  const [twitchOpen, setTwitchOpen] = useState(false);
 
   // Foco numa tela (botão ⤢ de cada tela) continua valendo sobre o layout escolhido
   const focusing = focusedSlot !== null && accounts.some((a) => a.slot === focusedSlot);
@@ -56,7 +58,9 @@ export default function App() {
         huntOpen={huntOpen}
         onToggleHunt={() => setHuntOpen((o) => !o)}
         sniperOpen={sniperOpen}
-        onToggleSniper={() => { setSniperOpen((v) => !v); setHuntOpen(false)}}
+        onToggleSniper={() => { setSniperOpen((v) => !v); setHuntOpen(false); setTwitchOpen(false); }}
+        twitchOpen={twitchOpen}
+        onToggleTwitch={() => { setTwitchOpen((v) => !v); setHuntOpen(false); setSniperOpen(false); }}
       />
 
       <main
@@ -83,6 +87,7 @@ export default function App() {
         )}
       </main>
       {huntOpen && <HuntSim onClose={() => setHuntOpen(false)} />}
+      {twitchOpen && <TwitchPanel accounts={accounts} onClose={() => setTwitchOpen(false)} />}
       {sniperOpen && <SniperPanel accounts={accounts} nomesPokemon={pokedexJson.creatures.map((c) => c.name)} onClose={() => setSniperOpen(false)} />}
     </div>
   );

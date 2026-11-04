@@ -5,9 +5,7 @@ import VolumeControl from './components/VolumeControl';
 import RestockPanel from './RestockPanel/RestockPanel';
 import useRestock from './RestockPanel/components/useRestock';
 import useAutoRestock from './RestockPanel/components/useAutoRestock';
-import TwitchPresence from '../TwitchPresence/TwitchPresence.jsx';
 import { useSniperStatus } from '../../utils/sniper/sniperStore';
-import AccountName from './components/AccountName';
 import ZoomControl from './components/ZoomControl';
 import ModeToggles from './components/ModeToggles';
 import PaneActions from './components/PaneActions';
@@ -16,8 +14,7 @@ import RmtPanel from './RmtPanel/RmtPanel';
 
 export default function PaneControls({
   account, focused, canRemove, onChange, onToggleFocus,
-  onRemove, onReload, onCopySheet, onListItems, onBuyItem, onSellDepot, onOpenRmt,
-  twitch, onEntrarTwitch,
+  onRemove, onReload, onCopySheet, onListItems, onBuyItem, onSellDepot, onOpenRmt
 }) {
   const [painel, setPainel] = useState(null);   // null | 'restock' | 'rmt'
   const alternar = (nome) => setPainel((p) => (p === nome ? null : nome));
@@ -43,7 +40,6 @@ export default function PaneControls({
 
   return (
     <div className="controls">
-      <TwitchPresence estado={twitch} onEntrar={onEntrarTwitch} />
       <VolumeControl muted={account.muted} volume={account.volume} onChange={onChange} />
       <ZoomControl zoom={account.zoom} onChange={onChange} />
       <ModeToggles phone={account.phone} onChange={onChange} />

@@ -1,8 +1,7 @@
 const { app, BrowserWindow, shell, dialog, ipcMain, webContents } = require('electron');
-const { registrarCanaisTwitch } = require('./twitchCanais');
-const { registrarLoginTwitch } = require('./twitchLogin');
 const path = require('path');
 const fs = require('fs');
+const { setupTwitchPresence } = require('./twitchPresence');
 
 if (!app.isPackaged) {
   app.setPath('userData', path.join(app.getPath('appData'), 'pokemultidle-dev'));
@@ -303,6 +302,8 @@ function setupAutoUpdate(win) {
   setInterval(check, CHECK_INTERVAL_MS);     // e a cada 12 horas
 }
 
+let janelaPrincipal = null;   // usada pelo Twitch Presence para avisar a interface
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1600,
@@ -323,6 +324,8 @@ function createWindow() {
   });
 
   win.on('page-title-updated', (e) => e.preventDefault()); // mantém o título do app
+  janelaPrincipal = win;
+  win.on('closed', () => { if (janelaPrincipal === win) janelaPrincipal = null; });
 
   // A interface carregou: esta abertura deu certo.
   win.webContents.once('did-finish-load', () => {
@@ -379,8 +382,14 @@ app.whenReady().then(() => {
   createWindow();
   if (avisos.length) mostrarAvisos(avisos);   // sem await: não segura a abertura do app
 
-  registrarLoginTwitch(); // login da twitch
-  registrarCanaisTwitch(log); // lista de canais oficiais do Bônus Twitch
+  // Twitch Presence: registra os canais IPC uma vez (o miner roda em processos Python, um por conta)
+  setupTwitchPresence({
+    app, ipcMain, shell,
+    send: (canal, payload) => {
+      if (janelaPrincipal && !janelaPrincipal.isDestroyed()) janelaPrincipal.webContents.send(canal, payload);
+    },
+  });
+
 
   // para ver as metricas de desempenho no cmd
   if (isDev && VER_DESEMPENHO) {

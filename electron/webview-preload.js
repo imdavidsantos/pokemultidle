@@ -188,7 +188,6 @@ function dentroDaPagina() {
     if (pedidosLoja.length) tentarResponderLoja(p);
     if (p.servidorAgora) desvio = Date.now() - Number(p.servidorAgora);
     const est = p.estado || (p.payload && p.payload.estado) || (p.t === 'estado' ? p : null);
-    if (est && est.twitch && Array.isArray(est.twitch.oficiais)) avisarOficiais(est.twitch.oficiais);
     if (est && est.servidorAgora) desvio = Date.now() - Number(est.servidorAgora);
 
     const fonte = est || (typeof p.gold === 'number' ? p : null);
@@ -512,18 +511,6 @@ function dentroDaPagina() {
     }
   }, 3000);
 
-  // ---------- canais oficiais do Bônus Twitch (vêm no pacote de estado; nada é pedido ao servidor) ----------
-  let ultimosOficiais = '';
-  function avisarOficiais(lista) {
-    const canais = [...new Set(lista
-      .map((c) => String((c && (c.login || c.nome)) || '').trim().toLowerCase())
-      .filter(Boolean))].sort();
-    const chave = canais.join(',');
-    if (!chave || chave === ultimosOficiais) return;
-    ultimosOficiais = chave;
-    emitir('twitch-oficiais', { canais });
-  }
-
   emitir('instalado', {});
 }
 
@@ -534,10 +521,7 @@ function instalarGameTap() {
   // 1) escuta primeiro: assim nada que a página mandar ao ser injetada se perde
   window.addEventListener('message', (e) => {
     const d = e.data;
-    if (d && d.source === 'PM_TAP') {
-      if (d.tipo === 'twitch-oficiais') ipcRenderer.send('twitch:oficiais', d.dados);   // direto ao processo principal
-      else avisarApp(d.tipo, d.dados); // página -> app React
-    }
+    if (d && d.source === 'PM_TAP') avisarApp(d.tipo, d.dados);   // página -> app React
   });
   ipcRenderer.on('pm-sniper-config', (_e, cfg) => {               // app React -> página
     window.postMessage({ source: 'PM_APP', tipo: 'config', cfg }, '*');

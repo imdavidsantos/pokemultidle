@@ -6,12 +6,19 @@ const { pathToFileURL } = require('url');
 contextBridge.exposeInMainWorld('pokemultidle', {
   webviewPreload: pathToFileURL(path.join(__dirname, 'webview-preload.js')).href,
   checkForUpdates: () => ipcRenderer.invoke('updater:check'),
-  readTwitchLogin: (slot) => ipcRenderer.invoke('twitch:login', slot),
-  readTwitchChannels: () => ipcRenderer.invoke('twitch:canais'),
-  openTwitchLogin: (slot) => ipcRenderer.invoke('twitch:entrar', slot),
-  onTwitchChannels: (cb) => {
-      const f = (_e, canais) => cb(canais);
-      ipcRenderer.on('twitch:canais', f);
-      return () => ipcRenderer.removeListener('twitch:canais', f);
-    },
+});
+
+// Twitch Presence
+contextBridge.exposeInMainWorld('twitch', {
+  checar: () => ipcRenderer.invoke('twitch:checar'),
+  instalar: () => ipcRenderer.invoke('twitch:instalar'),
+  iniciar: (slot, cfg) => ipcRenderer.invoke('twitch:iniciar', slot, cfg),
+  parar: (slot) => ipcRenderer.invoke('twitch:parar', slot),
+  pararTodas: () => ipcRenderer.invoke('twitch:parar-todas'),
+  status: () => ipcRenderer.invoke('twitch:status'),
+  aoMudar: (cb) => {
+    const f = (_e, dados) => cb(dados);
+    ipcRenderer.on('twitch:evento', f);
+    return () => ipcRenderer.removeListener('twitch:evento', f);
+  },
 });

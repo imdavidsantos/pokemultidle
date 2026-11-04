@@ -12,7 +12,8 @@ const LAYOUTS = [
 export default function TopBar({
   layout, focusedSlot, onLayout,
   huntOpen, onToggleHunt,
-  sniperOpen, onToggleSniper
+  sniperOpen, onToggleSniper,
+  twitchOpen, onToggleTwitch,
 }) {
   return (
     <header className="topbar">
@@ -48,6 +49,14 @@ export default function TopBar({
          title="Configurar a compra automática"
        >
          Sniper
+      </button>
+      <button
+        className={`topbar__tab topbar__hunt ${twitchOpen ? 'is-active' : ''}`}
+        onClick={onToggleTwitch}
+        aria-pressed={!!twitchOpen}
+        title="Twitch Presence: presença nas lives das contas"
+      >
+        TwitchMiner
       </button>
       <SettingsMenu />
     </header>
