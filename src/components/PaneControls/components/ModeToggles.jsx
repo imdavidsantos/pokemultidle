@@ -1,7 +1,7 @@
 import React from 'react';
 import { PhoneIcon } from '../../../assets/icons/PhoneIcon';
 
-export default function ModeToggles({ phone, onChange }) {
+export default function ModeToggles({ phone, onChangem }) {
   return (
     <>
       <button

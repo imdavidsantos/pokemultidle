@@ -91,6 +91,44 @@
   text-align: right;
 }
 
+/* Âncora p/ popovers abrirem embaixo do próprio botão */
+.controls__anchor { position: relative; }
+.controls__popover--col { flex-direction: column; align-items: stretch; gap: 2px; width: max-content; max-width: 240px; padding: 6px 8px; }
+.controls__hint { color: var(--muted); white-space: normal; }
+.controls__btn--confirm { background: var(--danger); color: #fff; }
+
+/* Bolinha de status */
+.controls__dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  margin: 0 4px;
+  border-radius: 50%;
+}
+.controls__dot.is-on  { background: #2ecc71; box-shadow: 0 0 6px #2ecc71aa; }
+.controls__dot.is-off { background: #e74c3c; box-shadow: 0 0 6px #e74c3caa; }
+
+/* Botão Ligar/Desligar dentro do painel de config */
+.controls__power-btn.is-ligar    { color: #2ecc71; }
+.controls__power-btn.is-desligar { color: #e74c3c; }
+
+/* Painel de config: mesmo tamanho de fonte em todas as opções */
+.controls__popover--col .controls__btn,
+.controls__popover--col .controls__hint,
+.controls__popover--col .controls__conta {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 2px;
+}
+
+/* Nome da conta, centralizado e separado das opções por um traço */
+.controls__conta {
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+  color: var(--muted);
+}
+
 @media (max-width: 1050px) {
   .controls__name {
     display: none;
