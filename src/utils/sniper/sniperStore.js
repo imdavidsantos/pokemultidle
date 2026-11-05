@@ -9,6 +9,7 @@ export const DEV = false;
 // "Quantidade infinita": um número enorme (Infinity vira null no JSON, então não serve).
 // Assim o limite `comprados >= maxQtd` nunca é atingido, sem mexer na lógica de compra.
 export const INFINITO = 1e9;
+export const RESTAURAR_SNIPER_ATIVO = true;
 
 const CHAVE = 'pokemultidle-sniper-v1';
 const MAX_LOGS = 60;
@@ -28,13 +29,12 @@ const VAZIA = configPadrao();
 const SEM_LOGS = [];
 const SEM_STATUS = {};
 
-// "Ligado" NUNCA é restaurado: a cada abertura do app você religa de propósito.
 function carregar() {
   try {
     const bruto = JSON.parse(localStorage.getItem(CHAVE) || '{}');
     const contas = {};
     for (const [slot, cfg] of Object.entries(bruto.contas ?? {})) {
-      contas[slot] = { ...configPadrao(), ...cfg, enabled: false, dryRun: DEV ? cfg.dryRun !== false : false };
+      contas[slot] = { ...configPadrao(), ...cfg, enabled: RESTAURAR_LIGADO && cfg.enabled === true, dryRun: DEV ? cfg.dryRun !== false : false };
     }
     return contas;
   } catch {

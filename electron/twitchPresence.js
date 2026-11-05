@@ -10,6 +10,7 @@ const MAX_LINHAS = 200;
 const ANSI = /\x1b\[[0-9;]*m/g;
 const RE_USUARIO = /^[A-Za-z0-9_]{1,25}$/;       // vale para a conta e para os streamers
 const CHATS = ['ONLINE', 'ALWAYS', 'NEVER', 'OFFLINE'];
+const DIAS_LOGS = 3;   // quantos dias de log ficam guardados (o miner e o app apagam os mais antigos)
 
 const isRaiz = (dir) => {
   try { return fs.existsSync(path.join(dir, 'TwitchChannelPointsMiner', 'runner.py')); } catch { return false; }
@@ -28,6 +29,22 @@ function acharRaiz(base) {
     }
   } catch { /* sem acesso */ }
   return null;
+}
+
+// Apaga os logs com mais de `dias` dias da pasta logs/ de uma conta. Segurança extra: o miner também
+// limpa os próprios (auto_clear), mas se o nome do arquivo mudar a cada início os antigos ficariam para sempre.
+function limparLogsAntigos(pasta, dias) {
+  const limite = Date.now() - dias * 24 * 60 * 60 * 1000;
+  let nomes;
+  try { nomes = fs.readdirSync(pasta); } catch { return; }   // a pasta ainda não existe
+  for (const nome of nomes) {
+    if (!/\.log($|\.)/.test(nome)) continue;   // só logs (inclui os rotacionados, ex.: usuario.log.2026-11-04)
+    const arq = path.join(pasta, nome);
+    try {
+      const st = fs.statSync(arq);
+      if (st.isFile() && st.mtimeMs < limite) fs.unlinkSync(arq);
+    } catch { /* em uso ou sem permissão: fica para a próxima */ }
+  }
 }
 
 function criarGerenciador({ app, shell, enviar, pastaExtra }) {
@@ -159,7 +176,7 @@ MINER_CONFIG = {
         emoji=False,
         colored=False,
         auto_clear=True,
-        log_retention_days=3,
+        log_retention_days=${DIAS_LOGS},
         daily_report=False,
     ),
     "streamer_settings": StreamerSettings(
@@ -235,6 +252,7 @@ ANALYTICS_CONFIG = None
     const cfgDir = path.join(dir, 'config');
     fs.mkdirSync(cfgDir, { recursive: true });
     fs.writeFileSync(path.join(cfgDir, 'config.py'), gerarConfig(cfg), 'utf8');
+    limparLogsAntigos(path.join(dir, 'logs'), DIAS_LOGS);   // antes de subir o miner, nada em uso
 
     // cwd = pasta da conta: cookies/, logs/ ficam isolados por conta (login de uma não mistura com outra)
     const proc = spawn(python.cmd, [...python.args, '-u', '-m', 'TwitchChannelPointsMiner.runner', '--config-dir', cfgDir], {
@@ -296,4 +314,4 @@ function setupTwitchPresence({ app, ipcMain, shell, send, pastaExtra }) {
   return g;
 }
 
-module.exports = { setupTwitchPresence, criarGerenciador, acharRaiz };
+module.exports = { setupTwitchPresence, criarGerenciador, acharRaiz, limparLogsAntigos };
