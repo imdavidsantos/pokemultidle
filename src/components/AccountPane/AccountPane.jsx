@@ -42,6 +42,7 @@ export default function AccountPane({ account, hidden, focused, canRemove, onCha
           onBuyItem={onBuyItem}
           onSellDepot={() => gameRef.current.sellDepot()}
           onOpenRmt={(tipo) => gameRef.current.openRmt(tipo)}
+          onResetData={() => gameRef.current?.resetData()}
         />
       </ErrorBoundary>
       <GameView
@@ -53,6 +54,7 @@ export default function AccountPane({ account, hidden, focused, canRemove, onCha
         zoom={account.zoom}
         phone={!!account.phone}
         focused={focused}
+        enabled={account.enabled}
       />
     </section>
   );

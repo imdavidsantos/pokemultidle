@@ -8,6 +8,8 @@ const defaultAccount = (slot) => ({
   volume: 1,
   zoom: 1,
   phone: false,
+  enabled: true,   // false = webview desmontado (conta desligada)
+  resetKey: 0,     // sobe a cada reset de dados: força remontar o webview
 });
 
 function load() {
@@ -15,7 +17,7 @@ function load() {
     const raw = JSON.parse(localStorage.getItem(STORAGE_KEY));
     if (raw && Array.isArray(raw.accounts) && raw.accounts.length) {
       return {
-        accounts: raw.accounts,
+        accounts: raw.accounts.map((a) => ({ ...defaultAccount(a.slot), ...a })),   // completa contas salvas antes dos campos novos
         focusedSlot: raw.focusedSlot ?? null,
         layout: raw.layout === '1x1' ? '1x1' : '2x2',
       };
@@ -59,6 +61,14 @@ export default function useAccounts() {
     }));
   }, []);
 
+  // depois de limpar os dados da sessão: troca a key do webview para ele recarregar do zero
+  const bumpResetKey = useCallback((slot) => {
+    setState((s) => ({
+      ...s,
+      accounts: s.accounts.map((a) => (a.slot === slot ? { ...a, resetKey: (a.resetKey || 0) + 1 } : a)),
+    }));
+  }, []);
+
   const setFocus = useCallback((slot) => {
     setState((s) => ({ ...s, focusedSlot: slot }));
   }, []);
@@ -74,6 +84,7 @@ export default function useAccounts() {
     addAccount,
     removeAccount,
     updateAccount,
+    bumpResetKey,
     setFocus,
     setLayout,
   };

@@ -6,6 +6,7 @@ const { pathToFileURL } = require('url');
 contextBridge.exposeInMainWorld('pokemultidle', {
   webviewPreload: pathToFileURL(path.join(__dirname, 'webview-preload.js')).href,
   checkForUpdates: () => ipcRenderer.invoke('updater:check'),
+  limparDados: (slot) => ipcRenderer.invoke('conta:limpar-dados', slot),   // reset da sessão de uma conta
 });
 
 // Twitch Presence

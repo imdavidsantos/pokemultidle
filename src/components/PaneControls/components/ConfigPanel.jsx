@@ -27,7 +27,7 @@ export default function ConfigPanel({ onReset, onClose, slot, ligado, onTogglePo
       )}
 
       <button
-        className={`controls__btn controls__power-btn ${ligado ? 'is-desligar' : 'is-ligar'}`}
+        className={`controls__btn controls__power-btn`}
         onClick={onTogglePower}
         aria-pressed={ligado}
       >

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell, dialog, ipcMain, webContents } = require('electron');
+const { app, BrowserWindow, shell, dialog, ipcMain, webContents, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { setupTwitchPresence } = require('./twitchPresence');
@@ -379,6 +379,25 @@ app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
 app.whenReady().then(() => {
   const avisos = verificarSaude();   // lê o que ficou da última execução
+  // Reset dos dados de uma conta: apaga cookies, login (localStorage/IndexedDB) e cache da partição dela.
+  // A partição precisa ser a mesma usada no GameView.jsx.
+  ipcMain.removeHandler('conta:limpar-dados');
+  ipcMain.handle('conta:limpar-dados', async (_e, slot) => {
+    const n = Number(slot);
+    if (!Number.isInteger(n) || n < 1) return { ok: false, erro: 'Conta inválida.' };
+    try {
+      const ses = session.fromPartition(`persist:pokemultidle-slot-${n}`);
+      await ses.clearStorageData();   // cookies, localStorage, IndexedDB, service workers...
+      await ses.clearCache();
+      await ses.clearAuthCache();
+      log.info(`Dados da conta ${n} resetados`);
+      return { ok: true };
+    } catch (err) {
+      log.error(`Falha ao resetar os dados da conta ${n}:`, err);
+      return { ok: false, erro: String((err && err.message) || err) };
+    }
+  });
+
   createWindow();
   if (avisos.length) mostrarAvisos(avisos);   // sem await: não segura a abertura do app
 

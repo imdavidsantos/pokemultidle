@@ -108,10 +108,6 @@
 .controls__dot.is-on  { background: #2ecc71; box-shadow: 0 0 6px #2ecc71aa; }
 .controls__dot.is-off { background: #e74c3c; box-shadow: 0 0 6px #e74c3caa; }
 
-/* Botão Ligar/Desligar dentro do painel de config */
-.controls__power-btn.is-ligar    { color: #2ecc71; }
-.controls__power-btn.is-desligar { color: #e74c3c; }
-
 /* Painel de config: mesmo tamanho de fonte em todas as opções */
 .controls__popover--col .controls__btn,
 .controls__popover--col .controls__hint,
@@ -127,6 +123,15 @@
   border-top: 1px solid var(--line);
   text-align: center;
   color: var(--muted);
+}
+
+.controls__popover--col .controls__group .controls__btn {
+  flex: 1;
+}
+
+.controls__popover--col .controls__group {
+  justify-content: center;
+  gap: 6px;
 }
 
 @media (max-width: 1050px) {

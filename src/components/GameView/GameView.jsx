@@ -12,11 +12,14 @@ import './GameView.css';
  * Renderiza o jogo numa "tela de PC" virtual (1920 de largura, altura proporcional ao painel)
  * e a ajusta com CSS para caber no painel. Cada conta usa uma sessão própria (partition).
  */
-const GameView = forwardRef(function GameView({ slot, muted, volume, zoom, phone, focused }, ref) {
+const GameView = forwardRef(function GameView({ slot, muted, volume, zoom, phone, focused, enabled }, ref) {
   const boxRef = useRef(null);
   const webviewRef = useRef(null);
   const settingsRef = useRef({ muted, volume, zoom });
   const [panel, setPanel] = useState({ width: 0, height: 0 });
+  const [resetKey, setResetKey] = useState(0);       // sobe a cada reset: remonta o webview do zero
+  const [limpando, setLimpando] = useState(false);   // true enquanto os dados estão sendo apagados
+  const ativo = enabled !== false && !limpando;      // o webview está montado?
 
   const sniper = useSniperConfig(slot);
   const sniperRef = useRef(sniper);
@@ -37,6 +40,19 @@ const GameView = forwardRef(function GameView({ slot, muted, volume, zoom, phone
     buyItem: (id, qtd) => comprarItem(webviewRef.current, id, qtd),
     sellDepot: () => venderDepot(webviewRef.current),
     openRmt: (tipo) => abrirAnuncioRmt(webviewRef.current, tipo),
+    // Reset: desmonta o webview, apaga os dados da sessão desta conta e monta de novo (sem login/cache)
+    resetData: async () => {
+      setLimpando(true);
+      await new Promise((r) => setTimeout(r, 300));   // dá tempo do webview fechar
+      try {
+        const r = await window.pokemultidle?.limparDados(slot);
+        if (r && r.ok === false) console.warn('Não consegui limpar os dados da conta:', r.erro);
+      } catch (err) {
+        console.warn('Não consegui limpar os dados da conta:', err);
+      }
+      setResetKey((k) => k + 1);
+      setLimpando(false);
+    },
   }));
 
   // Aplica mute, zoom e volume no que estiver carregado agora
@@ -106,9 +122,9 @@ const GameView = forwardRef(function GameView({ slot, muted, volume, zoom, phone
       clearInterval(timer);
       REAPPLY_EVENTS.forEach((e) => wv.removeEventListener(e, onReapply));
     };
-  }, [applySettings]);
+  }, [applySettings, ativo, resetKey]);
 
-  useEffect(() => registrarEnviador(slot, (pedido) => webviewRef.current.send('pm-loja', pedido)), [slot]);
+  useEffect(() => registrarEnviador(slot, (pedido) => webviewRef.current?.send('pm-loja', pedido)), [slot]);
 
   // Aplica na hora quando o usuário mexe nos controles
   useEffect(() => {
@@ -133,7 +149,7 @@ const GameView = forwardRef(function GameView({ slot, muted, volume, zoom, phone
       registrarEvento(slot, { tipo: 'erro', dados: { etapa: 'teste', msg: 'GameView ligado' } });
       wv.removeEventListener('dom-ready', enviar);
     };
-  }, [slot]);
+  }, [slot, ativo, resetKey]);
 
   // reenvia quando você muda algo no painel
   useEffect(() => {
@@ -154,16 +170,23 @@ const GameView = forwardRef(function GameView({ slot, muted, volume, zoom, phone
           transform: `scale(${screen.scale})`,
         }}
       >
-        <webview
-          ref={webviewRef}
-          src={GAME_URL}
-          partition={`persist:pokemultidle-slot-${slot}`}
-          preload={preload}
-          webpreferences="backgroundThrottling=no"
-          allowpopups="true"
-          className="gameview__webview"
-        />
+        {ativo && (
+          <webview
+            key={`${slot}-${resetKey}`}
+            ref={webviewRef}
+            src={GAME_URL}
+            partition={`persist:pokemultidle-slot-${slot}`}
+            preload={preload}
+            webpreferences="backgroundThrottling=no"
+            allowpopups="true"
+            className="gameview__webview"
+          />
+        )}
       </div>
+
+      {!ativo && (
+        <div className="gameview__off">{limpando ? 'Resetando dados…' : 'Conta desligada'}</div>
+      )}
     </div>
   );
 });
