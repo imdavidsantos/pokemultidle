@@ -1,4 +1,5 @@
 import React, { Suspense, lazy, useEffect, useState } from 'react';
+import { useTwitchAutoStart } from './utils/twitch/useTwitchAutoStart';
 import AccountPane from './components/AccountPane/AccountPane.jsx';
 import SniperPanel from './components/SniperPanel/SniperPanel.jsx';
 import TwitchPanel from './components/TwitchPanel/TwitchPanel.jsx';
@@ -14,6 +15,7 @@ const ValePanel = lazy(() => import('./components/ValePane/ValePanel.jsx'));
 
 export default function App() {
   const { accounts, focusedSlot, layout, addAccount, removeAccount, updateAccount, setFocus, setLayout } = useAccounts();
+  useTwitchAutoStart(accounts);
   const [huntOpen, setHuntOpen] = useState(false);
   const [sniperOpen, setSniperOpen] = useState(false);
   const [twitchOpen, setTwitchOpen] = useState(false);

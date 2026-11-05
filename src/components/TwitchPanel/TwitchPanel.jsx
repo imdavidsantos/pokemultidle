@@ -3,6 +3,7 @@ import {
   checarTwitch, iniciarTodasTwitch, iniciarPonteTwitch, iniciarTwitch, instalarTwitch,
   pararTodasTwitch, pararTwitch, salvarTwitch, twitchDisponivel,
   useTwitchChecagem, useTwitchConfig, useTwitchEstado, useTwitchPip,
+  definirAutoIniciar
 } from '../../utils/twitch/twitchStore';
 
 const GOLD = { borderColor: '#f5b800', color: '#f5b800', background: 'rgba(245, 184, 0, 0.12)' };
@@ -138,6 +139,8 @@ export default function TwitchPanel({ accounts = [], onClose }) {
             )}
           </div>
         )}
+
+        <Interruptor rotulo="Iniciar as contas sozinho ao abrir o app" valor={auto} onChange={definirAutoIniciar} />
 
         {accounts.length === 0 && <p className="sniper__vazio">Nenhuma conta aberta.</p>}
         {accounts.map((a) => <Conta key={a.slot} slot={a.slot} nome={a.name} />)}
