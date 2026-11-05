@@ -3,7 +3,7 @@ import {
   checarTwitch, iniciarTodasTwitch, iniciarPonteTwitch, iniciarTwitch, instalarTwitch,
   pararTodasTwitch, pararTwitch, salvarTwitch, twitchDisponivel,
   useTwitchChecagem, useTwitchConfig, useTwitchEstado, useTwitchPip,
-  definirAutoIniciar
+  definirAutoIniciar, useTwitchAutoIniciar
 } from '../../utils/twitch/twitchStore';
 
 const GOLD = { borderColor: '#f5b800', color: '#f5b800', background: 'rgba(245, 184, 0, 0.12)' };
@@ -99,6 +99,7 @@ function Conta({ slot, nome }) {
 export default function TwitchPanel({ accounts = [], onClose }) {
   const chk = useTwitchChecagem();
   const pip = useTwitchPip();
+  const auto = useTwitchAutoIniciar();
 
   useEffect(() => { iniciarPonteTwitch(); }, []);
 
