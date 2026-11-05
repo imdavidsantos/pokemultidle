@@ -3,10 +3,11 @@ import {
   DEV, desligarTudo, limparLogs, salvarConfig,
   useSniperConfig, useSniperLogs, useSniperStatus,
 } from '../../utils/sniper/sniperStore';
-import RuleRow from './components/RuleRow';
 import GlobalRules from './components/GlobalRules';
-import SniperLog from './components/SniperLog';
+import RulesShare from './components/RulesShare';
 import SniperDiag from './components/SniperDiag';
+import SniperLog from './components/SniperLog';
+import RuleRow from './components/RuleRow';
 import './SniperPanel.css';
 
 const CONFIRMA_REAL = 'Desligar a simulação faz o app comprar DE VERDADE (gastando ouro/orbs) tudo que bater com as regras desta conta. Continuar?';
@@ -98,6 +99,13 @@ export default function SniperPanel({ accounts, nomesPokemon = [], onClose }) {
                 </div>
               )
               : <SniperDiag status={status} />}
+
+            <RulesShare
+              key={slotAtual}
+              cfg={cfg}
+              nomeConta={conta?.name}
+              onAplicar={(rules, global) => mudar({ rules, global: { ...cfg.global, ...global } })}
+            />
 
             <section>
               <div className="sniper__titulo-sec">
