@@ -32,6 +32,7 @@ function acharRaiz(base) {
 
 function criarGerenciador({ app, shell, enviar, pastaExtra }) {
   const contas = new Map();    // slot -> { proc, estado, codigo, linhas, pid }
+  let prontaCache = null;      // { raiz, python } da última checagem ok: evita rodar o Python de novo a cada início
   const dadosDir = path.join(app.getPath('userData'), 'twitch-presence-data');
 
   const emitir = (slot, patch) => enviar('twitch:evento', { slot: String(slot), ...patch });
@@ -81,6 +82,7 @@ function criarGerenciador({ app, shell, enviar, pastaExtra }) {
   });
 
   function checar() {
+    prontaCache = null;   // só fica preenchido se a checagem inteira passar
     const { raiz, procurou } = localizarPasta();
     if (!raiz) {
       return { ok: false, etapa: 'pasta', mensagem: `Pasta "${NOME_PASTA}" não encontrada.`, procurou };
@@ -94,6 +96,7 @@ function criarGerenciador({ app, shell, enviar, pastaExtra }) {
       const ultima = String(t.stderr || '').trim().split(/\r?\n/).pop() || 'erro desconhecido';
       return { ok: false, etapa: 'dependencias', raiz, mensagem: `Faltam dependências do miner (${ultima}).` };
     }
+    prontaCache = { raiz, python: py };
     return { ok: true, raiz, mensagem: 'Pasta encontrada e pronta.' };
   }
 
@@ -214,9 +217,13 @@ ANALYTICS_CONFIG = None
     slot = String(slot);
     if (contas.get(slot)?.proc) return { ok: true, mensagem: 'Já está rodando.' };
 
-    // confirma a pasta; se existir, o processo continua
-    const chk = checar();
-    if (!chk.ok) { emitir(slot, { tipo: 'estado', estado: 'erro', mensagem: chk.mensagem }); return { ok: false, mensagem: chk.mensagem }; }
+    // confirma pasta, Python e dependências só na primeira vez (spawnSync trava o processo principal);
+    // depois reaproveita o resultado. O botão "Verificar de novo" do painel refaz a checagem.
+    if (!prontaCache) {
+      const chk = checar();
+      if (!chk.ok) { emitir(slot, { tipo: 'estado', estado: 'erro', mensagem: chk.mensagem }); return { ok: false, mensagem: chk.mensagem }; }
+    }
+    const { raiz, python } = prontaCache;
 
     let cfg;
     try { cfg = validar(cfgBruta); } catch (e) {
@@ -229,10 +236,9 @@ ANALYTICS_CONFIG = None
     fs.mkdirSync(cfgDir, { recursive: true });
     fs.writeFileSync(path.join(cfgDir, 'config.py'), gerarConfig(cfg), 'utf8');
 
-    const python = acharPython(chk.raiz);
     // cwd = pasta da conta: cookies/, logs/ ficam isolados por conta (login de uma não mistura com outra)
     const proc = spawn(python.cmd, [...python.args, '-u', '-m', 'TwitchChannelPointsMiner.runner', '--config-dir', cfgDir], {
-      cwd: dir, env: envPython(chk.raiz), windowsHide: true,
+      cwd: dir, env: envPython(raiz), windowsHide: true,
     });
     const reg = { proc, estado: 'iniciando', codigo: null, linhas: [], pid: proc.pid };
     contas.set(slot, reg);

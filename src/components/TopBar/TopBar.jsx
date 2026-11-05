@@ -56,7 +56,7 @@ export default function TopBar({
         aria-pressed={!!twitchOpen}
         title="Twitch Presence: presença nas lives das contas"
       >
-        TwitchMiner
+        TwitchPresence
       </button>
       <SettingsMenu />
     </header>
