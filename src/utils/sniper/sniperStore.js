@@ -9,6 +9,7 @@ export const DEV = false;
 // "Quantidade infinita": um número enorme (Infinity vira null no JSON, então não serve).
 // Assim o limite `comprados >= maxQtd` nunca é atingido, sem mexer na lógica de compra.
 export const INFINITO = 1e9;
+// true: lembra quais contas estavam LIGADAS ao fechar o app e as religa ao abrir. false: toda abertura começa desligada.
 export const RESTAURAR_SNIPER_ATIVO = true;
 
 const CHAVE = 'pokemultidle-sniper-v1';
@@ -30,16 +31,27 @@ const SEM_LOGS = [];
 const SEM_STATUS = {};
 
 function carregar() {
+  let bruto;
   try {
-    const bruto = JSON.parse(localStorage.getItem(CHAVE) || '{}');
-    const contas = {};
-    for (const [slot, cfg] of Object.entries(bruto.contas ?? {})) {
-      contas[slot] = { ...configPadrao(), ...cfg, enabled: RESTAURAR_LIGADO && cfg.enabled === true, dryRun: DEV ? cfg.dryRun !== false : false };
-    }
-    return contas;
-  } catch {
+    bruto = JSON.parse(localStorage.getItem(CHAVE) || '{}');
+  } catch (err) {
+    // ilegível: guarda uma cópia para recuperar à mão e começa vazio
+    console.error('[sniper] configuração salva ilegível; cópia mantida em', `${CHAVE}.bak`, err);
+    try { localStorage.setItem(`${CHAVE}.bak`, localStorage.getItem(CHAVE) || ''); } catch { /* ignora */ }
     return {};
   }
+  const contas = {};
+  for (const [slot, cfg] of Object.entries((bruto && bruto.contas) || {})) {
+    contas[slot] = { ...configPadrao(), ...cfg, enabled: false, dryRun: DEV ? cfg.dryRun !== false : false };
+    // só o "ligado" depende de RESTAURAR_SNIPER_ATIVO: se algo falhar aqui, a conta volta desligada,
+    // mas as regras NUNCA se perdem (e o erro aparece no console).
+    try {
+      contas[slot].enabled = RESTAURAR_SNIPER_ATIVO === true && cfg.enabled === true;
+    } catch (err) {
+      console.error('[sniper] não consegui restaurar o "ligado" da conta', slot, err);
+    }
+  }
+  return contas;
 }
 
 let contas = carregar();   // slot -> config (salva no localStorage)
@@ -49,8 +61,17 @@ let status = {};           // slot -> { socket, saldo }
 const ouvintes = new Set();
 const avisar = () => ouvintes.forEach((f) => f());
 const assinar = (f) => { ouvintes.add(f); return () => ouvintes.delete(f); };
+let fezBackup = false;
 const persistir = () => {
-  try { localStorage.setItem(CHAVE, JSON.stringify({ contas })); } catch { /* sem espaço */ }
+  try {
+    // antes da 1ª gravação da sessão, guarda o que estava salvo ao abrir o app (rede de segurança)
+    if (!fezBackup) {
+      fezBackup = true;
+      const atual = localStorage.getItem(CHAVE);
+      if (atual) localStorage.setItem(`${CHAVE}.bak`, atual);
+    }
+    localStorage.setItem(CHAVE, JSON.stringify({ contas }));
+  } catch { /* sem espaço */ }
 };
 
 // ---- catálogo de itens: lista fixa + o que o leitor aprende do jogo ----
