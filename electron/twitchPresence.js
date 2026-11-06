@@ -47,6 +47,45 @@ function limparLogsAntigos(pasta, dias) {
   }
 }
 
+// ---------- saldo de pontos (lido do log do miner) ----------
+// O miner escreve o saldo do canal em dois formatos, conforme o logger_settings.less:
+//   completo:  Streamer(username=canal, channel_id=1, channel_points=330) is Online!
+//   compacto:  canal (1.08k points) is Online!          (less=True, o que o app usa)
+// Números grandes podem vir abreviados (1.08k), então aceitamos o sufixo k/m/b (valor aproximado).
+const RE_SALDO = /Streamer\(username=([A-Za-z0-9_]{1,25}),[^)]*?channel_points=([0-9][0-9.,]*[kKmMbB]?)\)/;
+// No formato compacto só vale "canal (N points)" seguido de uma das mensagens do miner, para um título de
+// live com "(500 points)" no texto não virar saldo.
+const RE_SALDO_COMPACTO = /(?<=^|\s)([A-Za-z0-9_]{1,25}) \(([0-9][0-9.,]*[kKmMbB]?) points\)(?= is (?:Online|Offline)!| is streaming | - Reason:)/;
+
+function lerPontos(token) {
+  const m = /^([0-9][0-9.,]*)([kKmMbB]?)$/.exec(token);
+  if (!m) return null;
+  const n = Number(m[1].replace(/,/g, ''));
+  if (!Number.isFinite(n)) return null;
+  const mult = { '': 1, k: 1e3, m: 1e6, b: 1e9 }[m[2].toLowerCase()];
+  return { pontos: Math.round(n * mult), aprox: m[2] !== '' };
+}
+
+// Devolve { canal, pontos, texto, aprox, ganho, online } ou null.
+//  - ganho: o "+N" quando a linha é de um ganho ("+10 -> canal (1.09k points) - Reason: WATCH"); só vale se o
+//    "+N" vier logo antes do nome do canal, para um título de live com "+10" não ser confundido com ganho.
+//  - online: true/false quando a linha diz "is Online!/is Offline!/is streaming"; undefined nas demais.
+function lerSaldo(linha) {
+  const a = RE_SALDO.exec(linha);
+  const b = RE_SALDO_COMPACTO.exec(linha);
+  const m = a && b ? (a.index <= b.index ? a : b) : (a || b);
+  if (!m) return null;
+  const p = lerPontos(m[2]);
+  if (!p) return null;
+  const g = /\+(\d+)\s+\S{1,3}\s+$/.exec(linha.slice(0, m.index));
+  const ganho = g && /Reason:/.test(linha) ? Number(g[1]) : 0;
+  const resto = linha.slice(m.index + m[0].length);
+  let online;
+  if (/^\s*is (?:Online!|streaming )/.test(resto)) online = true;
+  else if (/^\s*is Offline!/.test(resto)) online = false;
+  return { canal: m[1].toLowerCase(), pontos: p.pontos, texto: m[2], aprox: p.aprox, ganho, online };
+}
+
 function criarGerenciador({ app, shell, enviar, pastaExtra }) {
   const contas = new Map();    // slot -> { proc, estado, codigo, linhas, pid }
   let prontaCache = null;      // { raiz, python } da última checagem ok: evita rodar o Python de novo a cada início
@@ -218,6 +257,22 @@ ANALYTICS_CONFIG = None
     if (!linha) return;
     reg.linhas.push(linha);
     if (reg.linhas.length > MAX_LINHAS) reg.linhas.shift();
+    const s = lerSaldo(linha);
+    if (s) {
+      const antes = reg.saldos.get(s.canal);
+      const novo = {
+        pontos: s.pontos, texto: s.texto, aprox: s.aprox,
+        ganho: (antes?.ganho || 0) + s.ganho,   // soma dos "+N" vistos nesta sessão
+        online: s.online ?? antes?.online,      // sem informação na linha: mantém o que já sabia
+        t: Date.now(),
+      };
+      reg.saldos.set(s.canal, novo);
+      emitir(slot, { tipo: 'saldo', canal: s.canal, ...novo });
+      if (reg.estado !== 'rodando') {   // ler um saldo prova que o login passou e o miner está de pé
+        reg.estado = 'rodando'; reg.codigo = null;
+        emitir(slot, { tipo: 'estado', estado: 'rodando', codigo: null });
+      }
+    }
     const cod = /enter this code:\s*([A-Z0-9-]{4,12})/i.exec(linha);
     if (cod) {
       reg.estado = 'login'; reg.codigo = cod[1];
@@ -258,7 +313,7 @@ ANALYTICS_CONFIG = None
     const proc = spawn(python.cmd, [...python.args, '-u', '-m', 'TwitchChannelPointsMiner.runner', '--config-dir', cfgDir], {
       cwd: dir, env: envPython(raiz), windowsHide: true,
     });
-    const reg = { proc, estado: 'iniciando', codigo: null, linhas: [], pid: proc.pid };
+    const reg = { proc, estado: 'iniciando', codigo: null, linhas: [], saldos: new Map(), pid: proc.pid };
     contas.set(slot, reg);
     emitir(slot, { tipo: 'estado', estado: 'iniciando', codigo: null });
 
@@ -297,7 +352,7 @@ ANALYTICS_CONFIG = None
   const pararTodas = () => [...contas.keys()].forEach(parar);
   app.on('before-quit', pararTodas);
 
-  const status = () => Object.fromEntries([...contas.entries()].map(([s, r]) => [s, { estado: r.estado, codigo: r.codigo, linhas: r.linhas.slice(-30) }]));
+  const status = () => Object.fromEntries([...contas.entries()].map(([s, r]) => [s, { estado: r.estado, codigo: r.codigo, linhas: r.linhas.slice(-30), saldos: Object.fromEntries(r.saldos) }]));
 
   return { checar, instalarDependencias, iniciar, parar, pararTodas, status, estadoDe, gerarConfig, validar };
 }
@@ -314,4 +369,4 @@ function setupTwitchPresence({ app, ipcMain, shell, send, pastaExtra }) {
   return g;
 }
 
-module.exports = { setupTwitchPresence, criarGerenciador, acharRaiz, limparLogsAntigos };
+module.exports = { setupTwitchPresence, criarGerenciador, acharRaiz, limparLogsAntigos, lerSaldo };

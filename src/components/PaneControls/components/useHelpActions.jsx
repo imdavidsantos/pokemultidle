@@ -3,7 +3,7 @@ import { StockIcon } from '../../../assets/icons/StockIcon';
 import { IMG } from '../../../utils/rmt/config';
 
 // Ações do menu de ajuda. Para acrescentar uma nova, é só colocar mais um item na lista.
-export default function useHelpActions({ onCopySheet, onToggleRestock, onSellDepot, onToggleRmt }) {
+export default function useHelpActions({ onCopySheet, onToggleRestock, onSellDepot, onToggleRmt, onToggleTwitch }) {
   // resultado de cada ação: { [id]: { tipo: 'ok' | 'err', msg? } }
   const [feedback, setFeedback] = useState({});
 
@@ -53,6 +53,13 @@ export default function useHelpActions({ onCopySheet, onToggleRestock, onSellDep
       icon: <img src={IMG.gema} width="18" height="18" alt="" draggable={false} />,
       label: 'Vender no market RMT',
       onClick: onToggleRmt,
+      fechaMenu: true,
+    },
+    {
+      id: 'twitch-pontos',
+      icon: '💜',
+      label: 'Pontos da Twitch',
+      onClick: onToggleTwitch,
       fechaMenu: true,
     },
   ];

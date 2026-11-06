@@ -6,6 +6,7 @@ import RestockPanel from './RestockPanel/RestockPanel';
 import useRestock from './RestockPanel/components/useRestock';
 import useAutoRestock from './RestockPanel/components/useAutoRestock';
 import { useSniperStatus } from '../../utils/sniper/sniperStore';
+import TwitchPontosPanel from './TwitchPontosPanel/TwitchPontosPanel';
 import ZoomControl from './components/ZoomControl';
 import ModeToggles from './components/ModeToggles';
 import PaneActions from './components/PaneActions';
@@ -17,13 +18,14 @@ import RmtPanel from './RmtPanel/RmtPanel';
 export default function PaneControls({
   account, focused, canRemove, onChange, onToggleFocus,
   onRemove, onReload, onCopySheet, onListItems, onBuyItem, onSellDepot, onOpenRmt,
-  onResetData,                       // NOVO: limpa os dados (storage/cookies/cache) do webview desta conta
+  onResetData,
 }) {
-  const [painel, setPainel] = useState(null);   // null | 'restock' | 'rmt' | 'zoom' | 'config'
+  const [painel, setPainel] = useState(null);   // null | 'restock' | 'rmt' | 'zoom' | 'config' | 'twitch'
   const alternar = (nome) => setPainel((p) => (p === nome ? null : nome));
 
   // Ligado por padrão; desligado quando account.enabled === false
   const ligado = account.enabled !== false;
+
 
   // O estoque e o reabastecimento automático ficam AQUI (sempre montado, uma vez por conta), e não dentro
   // do painel: assim o automático continua rodando em segundo plano com o painel fechado.
@@ -42,6 +44,7 @@ export default function PaneControls({
     onToggleRestock: () => alternar('restock'),
     onSellDepot,
     onToggleRmt: () => alternar('rmt'),
+    onToggleTwitch: () => alternar('twitch'),
   });
 
   return (
@@ -95,6 +98,9 @@ export default function PaneControls({
       )}
       {painel === 'rmt' && (
         <RmtPanel onChoose={onOpenRmt} onClose={() => setPainel(null)} />
+      )}
+      {painel === 'twitch' && (
+        <TwitchPontosPanel slot={account.slot} nome={account.name} onClose={() => setPainel(null)} />
       )}
     </div>
   );

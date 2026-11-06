@@ -4,7 +4,9 @@ import { useSyncExternalStore } from 'react';
 const CHAVE = 'pokemultidle-twitch-v1';
 const CHAVE_AUTO = 'pokemultidle-twitch-auto-v1';       // retomar as contas ao abrir o app
 const CHAVE_LIGADAS = 'pokemultidle-twitch-ligadas-v1'; // contas que ficaram ligadas (as que serão retomadas)
+const CHAVE_SALDOS = 'pokemultidle-twitch-saldos-v1';   // último saldo conhecido por conta e canal
 const MAX_LINHAS = 40;
+const MAX_CANAIS = 100;   // por conta (com "canais que sigo" ligado podem ser muitos)
 
 export const configPadrao = () => ({
   username: '',          // usuário da Twitch desta conta
@@ -59,6 +61,43 @@ export function definirAutoIniciar(valor) {
   avisar();
 }
 
+// Saldo de pontos lido do log do miner: slot -> { canal -> { pontos, texto, aprox, ganho, online, t } }.
+// `texto` é como o miner escreveu (pode vir abreviado, ex.: 61.38k, e então `aprox` é true); `ganho` é a soma
+// dos "+N" da sessão; `t` é quando foi visto pela última vez. Fica salvo para aparecer mesmo com o miner parado.
+const SEM_SALDOS = {};
+let saldos = (() => {
+  try {
+    const v = JSON.parse(localStorage.getItem(CHAVE_SALDOS) || '{}');
+    return v && typeof v === 'object' && !Array.isArray(v) ? v : {};
+  } catch { return {}; }
+})();
+let tSaldos = null;
+const persistirSaldos = () => {   // agrupa as gravações: chegam várias por minuto
+  if (tSaldos) return;
+  tSaldos = setTimeout(() => {
+    tSaldos = null;
+    try { localStorage.setItem(CHAVE_SALDOS, JSON.stringify(saldos)); } catch { /* sem espaço */ }
+  }, 2000);
+};
+function guardarSaldo(slot, canal, dados) {
+  const s = String(slot);
+  const atual = { ...(saldos[s] ?? {}), [canal]: dados };
+  const nomes = Object.keys(atual);
+  if (nomes.length > MAX_CANAIS) {   // mantém só os vistos mais recentemente
+    nomes.sort((a, b) => (atual[b].t || 0) - (atual[a].t || 0)).slice(MAX_CANAIS).forEach((n) => { delete atual[n]; });
+  }
+  saldos = { ...saldos, [s]: atual };
+  persistirSaldos();
+}
+export const useTwitchSaldos = (slot) => useSyncExternalStore(assinar, () => saldos[String(slot)] ?? SEM_SALDOS);
+export function limparSaldosTwitch(slot) {
+  const resto = { ...saldos };
+  delete resto[String(slot)];
+  saldos = resto;
+  persistirSaldos();
+  avisar();
+}
+
 const ponte = () => (typeof window !== 'undefined' ? window.twitch : undefined);
 export const twitchDisponivel = () => !!ponte();
 
@@ -99,6 +138,8 @@ function aoEvento(ev) {
   } else if (ev.tipo === 'log') {
     const atual = estados[ev.slot] ?? SEM_ESTADO;
     setEstado(ev.slot, { linhas: [...atual.linhas, ev.linha].slice(-MAX_LINHAS) });
+  } else if (ev.tipo === 'saldo') {
+    guardarSaldo(ev.slot, ev.canal, { pontos: ev.pontos, texto: ev.texto, aprox: !!ev.aprox, ganho: ev.ganho || 0, online: ev.online, t: ev.t || Date.now() });
   } else return;
   avisar();
 }
@@ -111,7 +152,10 @@ export async function iniciarPonteTwitch() {
   t.aoMudar(aoEvento);
   try {
     const st = await t.status();   // reaproveita o que já estava rodando (ex.: recarregou a tela)
-    for (const [slot, s] of Object.entries(st || {})) setEstado(slot, { estado: s.estado, codigo: s.codigo, linhas: s.linhas || [] });
+    for (const [slot, s] of Object.entries(st || {})) {
+      setEstado(slot, { estado: s.estado, codigo: s.codigo, linhas: s.linhas || [] });
+      for (const [canal, v] of Object.entries(s.saldos || {})) guardarSaldo(slot, canal, v);
+    }
   } catch { /* sem status */ }
   await checarTwitch();
 }
