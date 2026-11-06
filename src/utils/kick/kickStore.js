@@ -351,3 +351,101 @@ export async function iniciarAutomaticoKick(slots, intervaloMs = 0) {
   await iniciarTodasKick(retomar, intervaloMs);
   return { ok: true };
 }
+
+// ---------- saldo de pontos pela API (token) ----------
+// O processo principal consulta a Kick com o token da conta (window.kick.pontos) e o resultado entra no mesmo
+// `saldos` que o painel já lê. Funciona com o miner parado. `ganho` = soma das altas vistas entre uma consulta e outra.
+const SEM_STATUS_PONTOS = { carregando: false, erro: '', t: 0 };
+let statusPontos = {};   // slot -> { carregando, erro, t (última consulta ok) }
+const setStatusPontos = (slot, patch) => {
+  const k = String(slot);
+  statusPontos = { ...statusPontos, [k]: { ...(statusPontos[k] ?? SEM_STATUS_PONTOS), ...patch } };
+  avisar();
+};
+export const useKickPontosStatus = (slot) => useSyncExternalStore(assinar, () => statusPontos[String(slot)] ?? SEM_STATUS_PONTOS);
+
+const buscandoPontos = new Set();
+export async function buscarPontosKick(slot) {
+  const k = String(slot);
+  const t = ponte();
+  if (!t?.pontos) return { ok: false, mensagem: 'Disponível só no app desktop.' };
+  if (buscandoPontos.has(k)) return { ok: true };
+  const cfg = cfgDe(k);
+  if (!String(cfg.token).trim()) {
+    setStatusPontos(k, { carregando: false, erro: 'Cole o token da Kick desta conta.' });
+    return { ok: false, mensagem: 'Sem token.' };
+  }
+  const slugs = slugsParceiros();   // todos os parceiros (os desativados aparecem apagados no painel)
+  if (!slugs.length) return { ok: false, mensagem: 'A lista de parceiros ainda não chegou do jogo.' };
+
+  buscandoPontos.add(k);
+  setStatusPontos(k, { carregando: true });
+  try {
+    const r = await t.pontos({ token: cfg.token }, slugs);
+    const agora = Date.now();
+    for (const [canal, v] of Object.entries(r?.saldos || {})) {
+      const antes = saldos[k]?.[canal];
+      const subiu = antes && v.pontos > antes.pontos ? v.pontos - antes.pontos : 0;
+      guardarSaldo(k, canal, {
+        pontos: v.pontos, texto: String(v.pontos), aprox: false,
+        ganho: (antes?.ganho || 0) + subiu, online: antes?.online, t: agora,
+      });
+    }
+    const falhas = Object.keys(r?.erros || {}).length;
+    const erro = r?.ok ? (falhas ? `${falhas} canal(is) sem resposta.` : '') : (r?.mensagem || 'Falha ao consultar a Kick.');
+    setStatusPontos(k, { carregando: false, erro, ...(r?.ok ? { t: agora } : {}) });
+    return r;
+  } catch (e) {
+    setStatusPontos(k, { carregando: false, erro: e?.message || 'Falha ao consultar a Kick.' });
+    return { ok: false, mensagem: e?.message };
+  } finally { buscandoPontos.delete(k); }
+}
+
+// ---------- recompensas de um streamer (pedidas com o token) ----------
+const SEM_REC = { carregando: false, erro: '', lista: [], t: 0 };
+let recompensas = {};   // "slot:slug" -> { carregando, erro, lista, t }
+const setRec = (chave, patch) => {
+  recompensas = { ...recompensas, [chave]: { ...(recompensas[chave] ?? SEM_REC), ...patch } };
+  avisar();
+};
+export const useKickRecompensas = (slot, slug) => useSyncExternalStore(assinar, () => recompensas[`${slot}:${slug}`] ?? SEM_REC);
+
+export async function buscarRecompensasKick(slot, slug) {
+  const chave = `${slot}:${slug}`;
+  const t = ponte();
+  if (!t?.recompensas) return { ok: false, mensagem: 'Disponível só no app desktop.' };
+  if (recompensas[chave]?.carregando) return { ok: true };
+  setRec(chave, { carregando: true, erro: '' });
+  try {
+    const r = await t.recompensas({ token: cfgDe(slot).token }, slug);
+    setRec(chave, r?.ok
+      ? { carregando: false, erro: '', lista: r.lista || [], t: Date.now() }
+      : { carregando: false, erro: r?.mensagem || 'Falha ao buscar as recompensas.' });
+    return r;
+  } catch (e) {
+    setRec(chave, { carregando: false, erro: e?.message || 'Falha ao buscar as recompensas.' });
+    return { ok: false, mensagem: e?.message };
+  }
+}
+
+// Resgate em andamento / último resultado, por conta (só um por vez, para não gastar pontos em dobro).
+const SEM_RESGATE = { id: '', msg: '', ok: true };
+let resgate = {};   // slot -> { id (em andamento), msg, ok }
+const setResgate = (slot, patch) => { resgate = { ...resgate, [String(slot)]: { ...(resgate[String(slot)] ?? SEM_RESGATE), ...patch } }; avisar(); };
+export const useKickResgate = (slot) => useSyncExternalStore(assinar, () => resgate[String(slot)] ?? SEM_RESGATE);
+
+export async function resgatarKick(slot, slug, rec, texto = '') {
+  const t = ponte();
+  if (!t?.resgatar) return { ok: false, mensagem: 'Disponível só no app desktop.' };
+  if ((resgate[String(slot)] ?? SEM_RESGATE).id) return { ok: false, mensagem: 'Já há um resgate em andamento.' };
+  setResgate(slot, { id: rec.id, msg: '', ok: true });
+  try {
+    const r = await t.resgatar({ token: cfgDe(slot).token }, slug, rec.id, texto);
+    setResgate(slot, { id: '', msg: r?.mensagem || (r?.ok ? 'Resgatado!' : 'Falha ao resgatar.'), ok: !!r?.ok });
+    if (r?.ok) { buscarPontosKick(slot); buscarRecompensasKick(slot, slug); }   // atualiza saldo e limites
+    return r;
+  } catch (e) {
+    setResgate(slot, { id: '', msg: e?.message || 'Falha ao resgatar.', ok: false });
+    return { ok: false, mensagem: e?.message };
+  }
+}

@@ -32,6 +32,9 @@ contextBridge.exposeInMainWorld('kick', {
   parar: (slot) => ipcRenderer.invoke('kick:parar', slot),
   pararTodas: () => ipcRenderer.invoke('kick:parar-todas'),
   status: () => ipcRenderer.invoke('kick:status'),
+  pontos: (cfg, slugs) => ipcRenderer.invoke('kick:pontos', cfg, slugs),
+  recompensas: (cfg, slug) => ipcRenderer.invoke('kick:recompensas', cfg, slug),
+  resgatar: (cfg, slug, id, texto) => ipcRenderer.invoke('kick:resgatar', cfg, slug, id, texto),
   aoMudar: (cb) => {
     const f = (_e, dados) => cb(dados);
     ipcRenderer.on('kick:evento', f);

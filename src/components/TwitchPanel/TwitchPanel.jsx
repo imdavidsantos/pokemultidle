@@ -4,8 +4,9 @@ import {
   pararTodasTwitch, pararTwitch, salvarTwitch, twitchDisponivel,
   useTwitchChecagem, useTwitchConfig, useTwitchEstado, useTwitchPip, useTwitchParceiros, streamersDaConta,
   definirAutoIniciar, useTwitchAutoIniciar,
-  prioridadeDaConta, alternarStreamerTwitch, definirTodosTwitch, alternarPrioridadeTwitch, moverPrioridadeTwitch,
+  prioridadeDaConta, alternarStreamerTwitch, definirTodosTwitch, alternarPrioridadeTwitch, moverPrioridadeTwitch, useTwitchSaldos
 } from '../../utils/twitch/twitchStore';
+import ResumoFarm from '../../utils/ResumoFarm/ResumoFarm';
 
 const ROXO = { borderColor: '#9146FF', color: '#9146FF', background: 'rgba(145, 70, 255, 0.12)' };
 const CARD = { display: 'flex', flexDirection: 'column', gap: 8, padding: 10, border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8 };
@@ -105,6 +106,7 @@ function Streamers({ slot, cfg, ativo }) {
 }
 
 function Conta({ slot, nome }) {
+  const saldos = useTwitchSaldos(slot);
   const cfg = useTwitchConfig(slot);
   const est = useTwitchEstado(slot);
   const ativo = est.estado === 'rodando' || est.estado === 'iniciando' || est.estado === 'login';
@@ -159,6 +161,7 @@ function Conta({ slot, nome }) {
         </div>
       )}
       {est.mensagem && <div style={{ fontSize: 12, color: COR_ESTADO[est.estado] }}>{est.mensagem}</div>}
+      {est.linhas.length > 0 && (<ResumoFarm saldos={saldos} cor="#9146FF" />)}
       {est.linhas.length > 0 && (
         <details>
           <summary style={{ fontSize: 12, cursor: 'pointer' }}>Registro ({est.linhas.length})</summary>

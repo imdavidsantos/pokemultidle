@@ -6,6 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const { spawn, spawnSync } = require('child_process');
+const { net } = require('electron');
 
 // Pasta "mods": os arquivos dos miners da Twitch e da Kick ficam juntos.
 const NOME_MODS = 'mods';
@@ -102,6 +103,195 @@ const PROBLEMAS = [
   [/403 repetido|403 na inicialização|403 ao obter|IP bloqueado|o IP pode estar bloqueado|Повторный 403|403 при получении|IP may be blocked|403 during utility init/,
     'A Kick respondeu 403 (bloqueio de IP/Cloudflare). Tente um proxy.'],
 ];
+
+// ---------- saldo de pontos pela API da Kick (usa o token da conta, sem depender do miner) ----------
+// ATENÇÃO: confira este endereço no DevTools (abra um canal da Kick logado > Network > filtre por "points").
+// Se for outro, é só trocar aqui; o resto do código não muda.
+const URL_PONTOS = (slug) => `https://kick.com/api/v2/channels/${encodeURIComponent(slug)}/points`;
+const PONTOS_PARALELO = 3;
+const PONTOS_ESPERA_MS = 150;
+
+const limparToken = (t) => String(t || '').trim().replace(/^Bearer\s+/i, '');
+
+// 1ª tentativa: rede do Chromium (net.fetch), que passa melhor pelo Cloudflare que o fetch do Node.
+async function pedirNet(url, token, opc = {}) {
+  const ctrl = new AbortController();
+  const to = setTimeout(() => ctrl.abort(), 15000);
+  try {
+    const r = await net.fetch(url, {
+      method: opc.metodo || 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`, Accept: 'application/json', 'x-app-platform': 'web',
+        ...(opc.corpo ? { 'Content-Type': 'application/json' } : {}),
+      },
+      ...(opc.corpo ? { body: opc.corpo } : {}),
+      signal: ctrl.signal,
+    });
+    return { status: r.status, corpo: await r.text() };
+  } catch (e) {
+    return { status: 0, corpo: '', erro: e?.message || 'Falha de rede.' };
+  } finally { clearTimeout(to); }
+}
+
+// 2ª tentativa (se der 403 ou falha de rede): curl do sistema. O token vai por stdin, não aparece na linha de comando.
+function pedirCurl(url, token, opc = {}) {
+  return new Promise((resolve) => {
+    let out = ''; let err = '';
+    const p = spawn('curl', ['-sS', '-m', '15', '-X', opc.metodo || 'GET', '-w', '\n%{http_code}', '-K', '-', url], { windowsHide: true });
+    p.stdout.on('data', (b) => { out += b; });
+    p.stderr.on('data', (b) => { err += b; });
+    p.on('error', (e) => resolve({ status: 0, corpo: '', erro: e.message }));
+    p.on('close', () => {
+      const i = out.lastIndexOf('\n');
+      const status = Number(out.slice(i + 1)) || 0;
+      resolve({ status, corpo: i >= 0 ? out.slice(0, i) : '', erro: status ? '' : err.trim() });
+    });
+    p.stdin.on('error', () => {});
+    const esc = (s) => String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"');   // escape do arquivo de config do curl
+    p.stdin.end(`header = "Authorization: Bearer ${token}"\nheader = "Accept: application/json"\nheader = "x-app-platform: web"\n`
+      + (opc.corpo ? `header = "Content-Type: application/json"\ndata = "${esc(opc.corpo)}"\n` : ''));
+  });
+}
+
+async function chamar(url, token, opc = {}) {
+  let r = await pedirNet(url, token, opc);
+  if (r.status === 0 || r.status === 403) {
+    const c = await pedirCurl(url, token, opc);
+    if (c.status) r = c;
+  }
+  return r;
+}
+
+// Aceita { data: { points } } ou { points } (e variações comuns).
+function extrairPontos(corpo) {
+  let j;
+  try { j = JSON.parse(corpo); } catch { return null; }
+  const d = j && typeof j === 'object' && j.data && typeof j.data === 'object' ? j.data : j;
+  if (!d || typeof d !== 'object') return null;
+  for (const k of ['points', 'balance', 'channel_points', 'amount']) {
+    if (d[k] === undefined || d[k] === null || d[k] === '') continue;
+    const n = Number(d[k]);
+    if (Number.isFinite(n)) return Math.trunc(n);
+  }
+  return null;
+}
+
+// cfgBruta = { token }, slugs = lista de canais. Devolve { ok, mensagem, saldos: { slug: { pontos } }, erros: { slug: texto } }.
+async function buscarPontos(cfgBruta, slugsBrutos) {
+  const token = limparToken(cfgBruta?.token);
+  if (!token) return { ok: false, mensagem: 'Cole o token da Kick desta conta.', saldos: {}, erros: {} };
+  if (!RE_TOKEN.test(token)) return { ok: false, mensagem: 'Token da Kick com formato inválido.', saldos: {}, erros: {} };
+  const slugs = [...new Set((Array.isArray(slugsBrutos) ? slugsBrutos : [])
+    .map((s) => String(s).trim().toLowerCase()).filter((s) => RE_CANAL.test(s)))].slice(0, 100);
+  if (!slugs.length) return { ok: false, mensagem: 'Nenhum canal para consultar.', saldos: {}, erros: {} };
+
+  const saldos = {}; const erros = {};
+  let fatal = '';
+  let prox = 0;
+
+  const trabalhar = async () => {
+    while (!fatal && prox < slugs.length) {
+      const slug = slugs[prox++];
+      const url = URL_PONTOS(slug);
+      const r = await chamar(url, token);
+      if (r.status === 401) fatal = 'Token da Kick inválido ou expirado (401).';
+      else if (r.status === 429) fatal = 'A Kick limitou as consultas (429). Tente de novo em alguns minutos.';
+      else if (r.status === 403) erros[slug] = '403 (bloqueio Cloudflare/IP).';
+      else if (r.status === 404) erros[slug] = 'Sem pontos neste canal (404).';
+      else if (r.status >= 200 && r.status < 300) {
+        const pontos = extrairPontos(r.corpo);
+        if (pontos === null) erros[slug] = `Resposta inesperada: ${String(r.corpo).replace(/\s+/g, ' ').slice(0, 120)}`;
+        else saldos[slug] = { pontos };
+      } else erros[slug] = r.erro || `HTTP ${r.status}`;
+      await new Promise((ok) => setTimeout(ok, PONTOS_ESPERA_MS));
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(PONTOS_PARALELO, slugs.length) }, trabalhar));
+
+  const nSaldos = Object.keys(saldos).length;
+  const primeiroErro = Object.values(erros)[0] || '';
+  return {
+    ok: !fatal && nSaldos > 0,
+    mensagem: fatal || (nSaldos ? '' : primeiroErro || 'Não consegui ler nenhum saldo.'),
+    saldos,
+    erros,
+  };
+}
+
+// ---------- recompensas de um streamer (listar e resgatar) ----------
+// ATENÇÃO: estes endereços NÃO foram confirmados. A Kick não documenta o lado "espectador" das recompensas.
+// Abra o canal logado, clique numa recompensa na mão e copie do DevTools (Network) o endereço, o método e o corpo do
+// pedido de listar e do de resgatar. Se forem diferentes, ajuste só as 3 definições abaixo.
+const URL_RECOMPENSAS = (slug) => `https://kick.com/api/v2/channels/${encodeURIComponent(slug)}/rewards`;
+const URL_RESGATE = (slug, id) => `https://kick.com/api/v2/channels/${encodeURIComponent(slug)}/rewards/${encodeURIComponent(id)}/redeem`;
+const corpoResgate = (id, texto) => ({ reward_id: id, ...(texto ? { user_input: texto } : {}) });
+const RE_ID_REC = /^[A-Za-z0-9_-]{1,64}$/;
+
+const textoCurto = (v, n) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, n);
+
+// Aceita lista direta, { data: [...] }, { rewards: [...] } ou { data: { rewards: [...] } }.
+function normalizarRecompensas(corpo) {
+  let j;
+  try { j = JSON.parse(corpo); } catch { return null; }
+  let arr = Array.isArray(j) ? j : (j?.data ?? j?.rewards);
+  if (arr && !Array.isArray(arr)) arr = arr.rewards ?? arr.items ?? arr.data;
+  if (!Array.isArray(arr)) return null;
+  return arr.map((r) => {
+    const cor = String(r?.background_color ?? r?.color ?? '');
+    return {
+      id: String(r?.id ?? r?.reward_id ?? ''),
+      titulo: textoCurto(r?.title ?? r?.name, 80),
+      descricao: textoCurto(r?.description, 200),
+      custo: Math.max(0, Math.trunc(Number(r?.cost ?? r?.price ?? r?.points ?? 0)) || 0),
+      ativo: (r?.is_enabled ?? r?.enabled ?? true) !== false && !(r?.is_paused ?? r?.paused),
+      pedeTexto: !!(r?.is_user_input_required ?? r?.user_input_required ?? r?.requires_input),
+      cor: /^#[0-9a-f]{3,8}$/i.test(cor) ? cor : '',
+    };
+  }).filter((r) => RE_ID_REC.test(r.id) && r.titulo);
+}
+
+function tokenValido(cfgBruta) {
+  const token = limparToken(cfgBruta?.token);
+  if (!token) return { erro: 'Cole o token da Kick desta conta.' };
+  if (!RE_TOKEN.test(token)) return { erro: 'Token da Kick com formato inválido.' };
+  return { token };
+}
+
+const msgHttp = (r) => {
+  if (r.status === 401) return 'Token da Kick inválido ou expirado (401).';
+  if (r.status === 403) return 'A Kick bloqueou o pedido (403: Cloudflare/IP ou sem permissão).';
+  if (r.status === 404) return 'Não encontrado (404): confira o endereço no DevTools.';
+  if (r.status === 429) return 'A Kick limitou os pedidos (429). Tente de novo em instantes.';
+  return r.erro || `HTTP ${r.status}`;
+};
+
+// Devolve { ok, mensagem, lista: [{ id, titulo, descricao, custo, ativo, pedeTexto, cor }] }.
+async function buscarRecompensas(cfgBruta, slugBruto) {
+  const v = tokenValido(cfgBruta);
+  if (v.erro) return { ok: false, mensagem: v.erro, lista: [] };
+  const slug = String(slugBruto || '').trim().toLowerCase();
+  if (!RE_CANAL.test(slug)) return { ok: false, mensagem: 'Streamer inválido.', lista: [] };
+  const r = await chamar(URL_RECOMPENSAS(slug), v.token);
+  if (!(r.status >= 200 && r.status < 300)) return { ok: false, mensagem: msgHttp(r), lista: [] };
+  const lista = normalizarRecompensas(r.corpo);
+  if (!lista) return { ok: false, mensagem: `Resposta inesperada: ${textoCurto(r.corpo, 120)}`, lista: [] };
+  return { ok: true, mensagem: '', lista };
+}
+
+// Gasta pontos de verdade: só é chamado depois do clique + confirmação do usuário.
+async function resgatarRecompensa(cfgBruta, slugBruto, idBruto, textoBruto) {
+  const v = tokenValido(cfgBruta);
+  if (v.erro) return { ok: false, mensagem: v.erro };
+  const slug = String(slugBruto || '').trim().toLowerCase();
+  const id = String(idBruto || '');
+  if (!RE_CANAL.test(slug) || !RE_ID_REC.test(id)) return { ok: false, mensagem: 'Recompensa inválida.' };
+  const texto = textoCurto(textoBruto, 500);
+  const r = await chamar(URL_RESGATE(slug, id), v.token, { metodo: 'POST', corpo: JSON.stringify(corpoResgate(id, texto)) });
+  let msg = '';
+  try { const j = JSON.parse(r.corpo); msg = textoCurto(j?.message ?? j?.error ?? j?.data?.message, 160); } catch { /* sem JSON */ }
+  if (r.status >= 200 && r.status < 300) return { ok: true, mensagem: msg || 'Resgatado!' };
+  return { ok: false, mensagem: msg || msgHttp(r) };
+}
 
 function criarGerenciador({ app, shell, enviar, pastaExtra }) {
   void shell;
@@ -382,7 +572,10 @@ function setupKickPresence({ app, ipcMain, shell, send, pastaExtra }) {
   ipcMain.handle('kick:parar', (_e, slot) => g.parar(slot));
   ipcMain.handle('kick:parar-todas', () => { g.pararTodas(); return { ok: true }; });
   ipcMain.handle('kick:status', () => g.status());
+  ipcMain.handle('kick:pontos', (_e, cfg, slugs) => buscarPontos(cfg, slugs));   // saldo pelo token
+  ipcMain.handle('kick:recompensas', (_e, cfg, slug) => buscarRecompensas(cfg, slug));
+  ipcMain.handle('kick:resgatar', (_e, cfg, slug, id, texto) => resgatarRecompensa(cfg, slug, id, texto));
   return g;
 }
 
-module.exports = { setupKickPresence, criarGerenciador, acharRaiz, limparLogsAntigos, lerLinha, aplicarPatchSaldo };
+module.exports = { setupKickPresence, criarGerenciador, acharRaiz, limparLogsAntigos, lerLinha, aplicarPatchSaldo, buscarPontos, extrairPontos, buscarRecompensas, resgatarRecompensa, normalizarRecompensas };

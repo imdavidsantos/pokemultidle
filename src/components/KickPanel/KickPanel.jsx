@@ -4,10 +4,11 @@ import {
   pararTodasKick, pararKick, salvarKick, kickDisponivel,
   useKickChecagem, useKickConfig, useKickEstado, useKickPip, useKickParceiros, streamersDaConta,
   definirAutoIniciar, useKickAutoIniciar,
-  prioridadeDaConta, alternarStreamerKick, definirTodosKick, alternarPrioridadeKick, moverPrioridadeKick,
+  prioridadeDaConta, alternarStreamerKick, definirTodosKick, alternarPrioridadeKick, moverPrioridadeKick, useKickSaldos
 } from '../../utils/kick/kickStore';
+import ResumoFarm from '../../utils/ResumoFarm/ResumoFarm';
 
-const VERDE = { borderColor: '#53fc18', color: '#53fc18', background: 'rgba(83, 252, 24, 0.12)' };   // verde da Kick
+const VERDE = { borderColor: '#53fc18', color: '#53fc18', background: 'rgba(83, 252, 24, 0.12)' };
 const AVISO = '#f5b800';
 const CARD = { display: 'flex', flexDirection: 'column', gap: 8, padding: 10, border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, minWidth: 0, maxWidth: '100%', boxSizing: 'border-box', overflowWrap: 'anywhere' };
 const CAMPO = { display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, minWidth: 0 };
@@ -106,6 +107,7 @@ function Streamers({ slot, cfg, ativo }) {
 }
 
 function Conta({ slot, nome }) {
+  const saldos = useKickSaldos(slot);
   const cfg = useKickConfig(slot);
   const est = useKickEstado(slot);
   const [verToken, setVerToken] = useState(false);
@@ -165,6 +167,7 @@ function Conta({ slot, nome }) {
       <Streamers slot={slot} cfg={cfg} ativo={ativo} />
 
       {est.mensagem && <div style={{ fontSize: 12, color: COR_ESTADO[est.estado] || AVISO }}>{est.mensagem}</div>}
+      {est.linhas.length > 0 && (<ResumoFarm saldos={saldos} cor="#53fc18" />)}
       {est.linhas.length > 0 && (
         <details>
           <summary style={{ fontSize: 12, cursor: 'pointer' }}>Registro ({est.linhas.length})</summary>

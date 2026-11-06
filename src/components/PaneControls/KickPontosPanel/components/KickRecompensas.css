@@ -1,0 +1,55 @@
+/* Aba de recompensas: renderizada dentro do .kkpontos (mesmo encaixe do painel de pontos). */
+.kkrec__bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; font-size: 13px; }
+.kkrec__voltar, .kkrec__close { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 13px; }
+.kkrec__voltar:hover, .kkrec__close:hover { color: var(--text); }
+
+.kkrec__titulo { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.kkrec__nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 700; color: var(--text); }
+.kkrec__saldo { font-size: 12px; color: #1de02d; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.kkrec__msg { margin: 6px 2px; font-size: 12px; color: var(--muted); }
+.kkrec__msg.is-ok { color: #1de02d; }
+.kkrec__msg.is-erro { color: #f85149; }
+
+.kkrec__lista { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.kkrec__item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 13px;
+}
+.kkrec__item.is-off { opacity: 0.5; }
+.kkrec__info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.kkrec__rotulo { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.kkrec__desc { font-size: 11px; color: var(--muted); }
+.kkrec__input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 3px 6px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 12px;
+}
+.kkrec__custo { color: var(--text); font-variant-numeric: tabular-nums; text-align: right; }
+
+.kkrec__btn {
+  padding: 3px 8px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: none;
+  color: var(--text);
+  font-size: 11px;
+  cursor: pointer;
+}
+.kkrec__btn:hover:not(:disabled) { border-color: var(--accent); }
+.kkrec__btn:disabled { opacity: 0.45; cursor: default; }
+
+.kkrec__rodape { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+.kkrec__rodape small { font-size: 11px; color: var(--muted); }

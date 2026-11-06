@@ -7,6 +7,7 @@ import useRestock from './RestockPanel/components/useRestock';
 import useAutoRestock from './RestockPanel/components/useAutoRestock';
 import { useSniperStatus } from '../../utils/sniper/sniperStore';
 import TwitchPontosPanel from './TwitchPontosPanel/TwitchPontosPanel';
+import KickPontosPanel from './KickPontosPanel/KickPontosPanel';
 import ZoomControl from './components/ZoomControl';
 import ModeToggles from './components/ModeToggles';
 import PaneActions from './components/PaneActions';
@@ -20,7 +21,7 @@ export default function PaneControls({
   onRemove, onReload, onCopySheet, onListItems, onBuyItem, onSellDepot, onOpenRmt,
   onResetData,
 }) {
-  const [painel, setPainel] = useState(null);   // null | 'restock' | 'rmt' | 'zoom' | 'config' | 'twitch'
+  const [painel, setPainel] = useState(null);   // null | 'restock' | 'rmt' | 'zoom' | 'config' | 'twitch' | 'kick'
   const alternar = (nome) => setPainel((p) => (p === nome ? null : nome));
 
   // Ligado por padrão; desligado quando account.enabled === false
@@ -45,6 +46,7 @@ export default function PaneControls({
     onSellDepot,
     onToggleRmt: () => alternar('rmt'),
     onToggleTwitch: () => alternar('twitch'),
+    onToggleKick: () => alternar('kick'),
   });
 
   return (
@@ -101,6 +103,9 @@ export default function PaneControls({
       )}
       {painel === 'twitch' && (
         <TwitchPontosPanel slot={account.slot} nome={account.name} onClose={() => setPainel(null)} />
+      )}
+      {painel === 'kick' && (
+        <KickPontosPanel slot={account.slot} nome={account.name} onClose={() => setPainel(null)} />
       )}
     </div>
   );
