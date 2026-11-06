@@ -7,10 +7,14 @@ const CHAVE_LIGADAS = 'pokemultidle-twitch-ligadas-v1'; // contas que ficaram li
 const CHAVE_SALDOS = 'pokemultidle-twitch-saldos-v1';   // último saldo conhecido por conta e canal
 const MAX_LINHAS = 40;
 const MAX_CANAIS = 100;   // por conta (com "canais que sigo" ligado podem ser muitos)
+const CHAVE_PARCEIROS = 'pokemultidle-twitch-parceiros-v1';   // última lista de canais parceiros vista no jogo
+const DIA_MS = 24 * 60 * 60 * 1000;
+const RE_SLUG = /^[A-Za-z0-9_]{1,25}$/;   // login da Twitch
 
 export const configPadrao = () => ({
   username: '',          // usuário da Twitch desta conta
-  streamers: '',         // um por linha ou separados por vírgula
+  prioridade: [],        // logins de canais parceiros, em ordem de prioridade (o de cima é assistido primeiro)
+  desativados: [],       // logins de parceiros que o usuário desmarcou (parceiro novo entra ativado por padrão)
   seguidores: false,     // também assistir canais que a conta segue
   chat: 'ONLINE',        // presença no chat: ONLINE | ALWAYS | NEVER | OFFLINE
   drops: false,          // resgatar drops (desligado por padrão)
@@ -123,6 +127,137 @@ export function salvarTwitch(slot, patch) {
   contas = { ...contas, [String(slot)]: { ...cfgDe(slot), ...patch } };
   persistir();
   avisar();
+  agendarReinicio();   // se a lista de streamers mudou com o miner ligado, reinicia (com espera, juntando vários cliques)
+}
+
+// ---------- canais parceiros (vêm do jogo: estado.twitch.oficiais) ----------
+// { lista: [{ slug, nome }], atualizadoEm (última vez que a lista MUDOU), checadoEm (última vez que o jogo confirmou),
+//   novos: [nomes que entraram na última mudança] }
+const PARCEIROS_VAZIO = { lista: [], atualizadoEm: 0, checadoEm: 0, novos: [] };
+let parceiros = (() => {
+  try {
+    const v = JSON.parse(localStorage.getItem(CHAVE_PARCEIROS) || 'null');
+    return v && Array.isArray(v.lista) ? { ...PARCEIROS_VAZIO, ...v } : PARCEIROS_VAZIO;
+  } catch { return PARCEIROS_VAZIO; }
+})();
+const persistirParceiros = () => { try { localStorage.setItem(CHAVE_PARCEIROS, JSON.stringify(parceiros)); } catch { /* sem espaço */ } };
+export const useTwitchParceiros = () => useSyncExternalStore(assinar, () => parceiros);
+
+const slugsParceiros = () => parceiros.lista.map((p) => p.slug);
+
+// Lista final enviada ao miner: só parceiros ativados; os da prioridade vêm primeiro (na ordem escolhida),
+// depois os demais na ordem da lista do jogo.
+export function streamersDaConta(cfg) {
+  const off = new Set(cfg.desativados || []);
+  const ativos = slugsParceiros().filter((s) => !off.has(s));
+  const prio = (cfg.prioridade || []).filter((s) => ativos.includes(s));
+  return [...new Set([...prio, ...ativos])];
+}
+
+// Prioridade limpa: só logins que ainda existem na lista de parceiros.
+export const prioridadeDaConta = (cfg) => (cfg.prioridade || []).filter((s) => slugsParceiros().includes(s));
+
+export function alternarStreamerTwitch(slot, slug, ativo) {
+  const off = new Set(cfgDe(slot).desativados || []);
+  if (ativo) off.delete(slug); else off.add(slug);
+  salvarTwitch(slot, { desativados: [...off] });
+}
+
+export const definirTodosTwitch = (slot, ativo) => salvarTwitch(slot, { desativados: ativo ? [] : slugsParceiros() });
+
+export function alternarPrioridadeTwitch(slot, slug) {
+  const p = prioridadeDaConta(cfgDe(slot));
+  salvarTwitch(slot, { prioridade: p.includes(slug) ? p.filter((s) => s !== slug) : [...p, slug] });
+}
+
+export function moverPrioridadeTwitch(slot, slug, delta) {
+  const p = prioridadeDaConta(cfgDe(slot));
+  const i = p.indexOf(slug);
+  const j = i + delta;
+  if (i < 0 || j < 0 || j >= p.length) return;
+  [p[i], p[j]] = [p[j], p[i]];
+  salvarTwitch(slot, { prioridade: p });
+}
+
+const iniciadoCom = {};   // slot -> lista de streamers com que o miner foi iniciado (para saber se precisa reiniciar)
+const emUso = (slot) => ['rodando', 'iniciando', 'login'].includes((estados[String(slot)] ?? SEM_ESTADO).estado);
+
+const esperarParado = async (slot, ms = 15000) => {
+  const fim = Date.now() + ms;
+  while (Date.now() < fim) {
+    if (!emUso(slot)) return true;
+    await new Promise((r) => setTimeout(r, 400));
+  }
+  return false;
+};
+
+// O miner só lê o config ao iniciar, então para entrar um streamer novo é preciso reiniciar a conta.
+// Só reinicia contas ligadas cuja lista de streamers mudou. Não mexe no "ligadas" (continua ligada).
+let tReinicio = null;
+let reiniciando = false;
+function agendarReinicio() {
+  clearTimeout(tReinicio);
+  tReinicio = setTimeout(async () => {
+    if (reiniciando || !ponte()) return;
+    reiniciando = true;
+    try {
+      for (const slot of [...ligadas]) {
+        const cfg = cfgDe(slot);
+        if (!emUso(slot)) continue;
+        if (iniciadoCom[slot] === streamersDaConta(cfg).join('\n')) continue;
+        await ponte().parar(String(slot));
+        if (await esperarParado(slot)) {
+          await iniciarTwitch(slot);
+          await new Promise((r) => setTimeout(r, 2500));   // espaça uma conta da outra
+        }
+      }
+    } finally { reiniciando = false; }
+  }, 5000);   // espera: várias contas do jogo mandam a mesma lista quase junto
+}
+
+// Chamado quando uma tela do jogo informa a lista de parceiros (dados = { oficiais: [...] }).
+// Aceita `slug` (mandado pelo preload) ou `login` (formato cru do jogo).
+export function atualizarParceirosTwitch(dados) {
+  const lista = (dados?.oficiais || [])
+    .map((o) => (o ? { ...o, id: String(o.slug || o.login || '') } : null))
+    .filter((o) => o && o.ativo !== false && RE_SLUG.test(o.id))
+    .map((o) => ({ slug: o.id.toLowerCase(), nome: String(o.nome || o.id) }));
+  if (!lista.length) return;
+  const agora = Date.now();
+  const antes = new Set(parceiros.lista.map((p) => p.slug));
+  const depois = new Set(lista.map((p) => p.slug));
+  const novos = lista.filter((p) => !antes.has(p.slug)).map((p) => p.nome);
+  const saiu = [...antes].some((s) => !depois.has(s));
+  const mudou = novos.length > 0 || saiu;
+  parceiros = mudou
+    ? { lista, atualizadoEm: agora, checadoEm: agora, novos: antes.size ? novos : [] }   // na 1ª vez não conta como "novos"
+    : { ...parceiros, checadoEm: agora };
+  persistirParceiros();
+  avisar();
+  agendarReinicio();   // também cobre o caso de o miner ter subido antes da lista chegar
+}
+
+// Opcional: o app registra aqui uma função que faz o jogo mandar o estado de novo (ex.: recarregar uma tela do jogo).
+const atualizadores = new Set();   // uma função por tela do jogo; basta chamar uma
+export function definirAtualizadorParceirosTwitch(fn) {
+  if (typeof fn !== 'function') return () => {};
+  atualizadores.add(fn);
+  return () => atualizadores.delete(fn);
+}
+
+let verificando = false;
+// Verifica a cada hora; se a lista não foi confirmada pelo jogo há 24 h, pede uma nova (se houver atualizador).
+export function iniciarVerificacaoParceirosTwitch() {
+  if (verificando) return;
+  verificando = true;
+  const checar = () => {
+    if (Date.now() - (parceiros.checadoEm || 0) >= DIA_MS) {
+      try { [...atualizadores][0]?.(); } catch { /* sem tela do jogo agora */ }
+    }
+    agendarReinicio();
+  };
+  setInterval(checar, 60 * 60 * 1000);
+  setTimeout(checar, 30000);   // logo depois de abrir o app
 }
 
 const setEstado = (slot, patch) => {
@@ -182,8 +317,16 @@ export async function instalarTwitch() {
 export async function iniciarTwitch(slot) {
   const t = ponte();
   if (!t) return { ok: false, mensagem: 'Disponível só no app desktop.' };
-  const r = await t.iniciar(String(slot), cfgDe(slot));
-  if (r.ok) marcarLigada(slot, true);
+  const cfg = cfgDe(slot);
+  const streamers = streamersDaConta(cfg).join('\n');   // parceiros ativados, prioridade primeiro
+  if (!streamers) {
+    const mensagem = parceiros.lista.length ? 'Ative pelo menos um streamer parceiro.' : 'A lista de parceiros ainda não chegou do jogo.';
+    setEstado(slot, { estado: 'erro', mensagem });
+    avisar();
+    return { ok: false, mensagem };
+  }
+  const r = await t.iniciar(String(slot), { ...cfg, streamers });
+  if (r.ok) { iniciadoCom[String(slot)] = streamers; marcarLigada(slot, true); }
   else { setEstado(slot, { estado: 'erro', mensagem: r.mensagem }); avisar(); }
   return r;
 }

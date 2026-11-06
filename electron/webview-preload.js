@@ -1,9 +1,7 @@
 // Roda DENTRO de cada conta (webview), antes do jogo carregar, a cada página/navegação.
 // 1) Leitor do WebSocket do jogo + compra automática (sniper)
 // 2) Controle de volume para WebAudio e <audio>/<video>
-//
-// OBS.: este preload roda em sandbox, onde `require('./arquivo.js')` não funciona.
-// Por isso o código do sniper fica aqui dentro, no mesmo arquivo.
+
 const { ipcRenderer, webFrame } = require('electron');
 
 // ====================== SNIPER (leitor do jogo + compra automática) ======================
@@ -14,14 +12,12 @@ function dentroDaPagina() {
   const originalSend = WS.prototype.send;
   const emitir = (tipo, dados) => window.postMessage({ source: 'PM_TAP', tipo, dados }, '*');
 
-  // MODO DESCOBERTA: manda ao app o que o PRÓPRIO jogo envia ao servidor (e a 1ª mensagem de cada tipo
-  // recebido, mais as que parecem de loja/inventário) para descobrir como a loja de itens funciona.
-  // Depois de descobrir, troque para false. As mensagens do sniper (enviar) não entram aqui.
-  const CAPTURA = false;
+  // MODO DESCOBERTA: manda ao app o que o PRÓPRIO jogo envia ao servidor.
+  const CAPTURA = false;   // ativar para ativar o modo descoberta.
   const tiposCapturados = {};
   const capturar = (dir, bruto) => {
     if (!CAPTURA || typeof bruto !== 'string') return;
-    emitir('captura', { dir, t: Date.now(), msg: bruto.slice(0, 1500) });
+    emitir('captura', { dir, t: Date.now(), msg: bruto.slice(0, 6000) });
   };
 
   let cfg = { enabled: false, dryRun: true, rules: [], global: {} };
@@ -41,6 +37,8 @@ function dentroDaPagina() {
   let ciclo = 0;
   let ultimoSaldo = '';
   let ultimoSaldoEm = 0;
+  let ultimoParceiros = '';             // resumo da última lista de canais parceiros (Kick) enviada ao app
+  let ultimoParceirosTwitch = '';       // idem para os canais parceiros da Twitch
 
   const ehOuro = (m) => ['gold', 'coins', 'coin'].includes(m);
   const ehGema = (m) => ['orb', 'orbs', 'gemas', 'gema', 'gems'].includes(m);
@@ -78,9 +76,11 @@ function dentroDaPagina() {
       contar(p);
       if (CAPTURA) {
         const tp = typeof p.t === 'string' ? p.t : '(sem t)';
-        const interessa = /loja|shop|store|inv|bag|compr|buy/i.test(tp) && !/^market\./.test(tp); // para loja
-        // const interessa = (/twitch|b[oô]nus|bonus|canal|canais/i.test(tp)
-        //   || /pokeidlebot|guaxilol1|patopapao/i.test(ev.data.slice(0, 4000))) && !/^market\./.test(tp);
+        // para qualquer pacote que cite twitch/kick/parceiro/streamer/canal:
+        // const interessa = /twitch|kick|parceir|partner|streamer|live|canal|canais|b[oô]nus|bonus/i.test(tp + ' ' + ev.data.slice(0, 6000))
+        //   && !/^market\./.test(tp);
+        // para loja: 
+        // const interessa = /loja|shop|store|inv|bag|compr|buy/i.test(tp) && !/^market\./.test(tp);
         if (!tiposCapturados[tp] || interessa) { tiposCapturados[tp] = true; capturar('entrada', ev.data); }
       }
       // o socket do jogo é o que recebe welcome/estado (evita enviar para outro socket da página)
@@ -201,6 +201,33 @@ function dentroDaPagina() {
       if (gemas !== null) { saldo.gemas = gemas; doPacote.gemas = true; }
       if (diamantes !== null) { saldo.diamonds = diamantes; doPacote.diamonds = true; }
       avisarSaldo(fonte.huntSlug);
+    }
+
+    // canais parceiros da Kick: vêm no estado do jogo (estado.kick.oficiais). Só avisa o app quando a lista muda.
+    const kk = est && est.kick;
+    if (kk && Array.isArray(kk.oficiais) && kk.oficiais.length) {
+      const oficiais = kk.oficiais
+        .filter((o) => o && typeof o.slug === 'string' && o.slug)
+        .map((o) => ({ slug: o.slug, nome: String(o.nome || o.slug), ativo: o.ativo !== false, aoVivo: !!o.aoVivo }));
+      const resumo = JSON.stringify(oficiais.map((o) => [o.slug, o.ativo]));
+      if (resumo !== ultimoParceiros) {
+        ultimoParceiros = resumo;
+        emitir('kickParceiros', { oficiais });
+      }
+    }
+
+    // canais parceiros da Twitch: vêm no estado do jogo (estado.twitch.oficiais, com `login`). Só avisa o app quando a lista muda.
+    // Manda `slug` (= login) para o app tratar igual à Kick.
+    const tw = est && est.twitch;
+    if (tw && Array.isArray(tw.oficiais) && tw.oficiais.length) {
+      const oficiais = tw.oficiais
+        .filter((o) => o && typeof o.login === 'string' && o.login)
+        .map((o) => ({ slug: o.login, nome: String(o.nome || o.login), ativo: o.ativo !== false, aoVivo: !!o.aoVivo }));
+      const resumo = JSON.stringify(oficiais.map((o) => [o.slug, o.ativo]));
+      if (resumo !== ultimoParceirosTwitch) {
+        ultimoParceirosTwitch = resumo;
+        emitir('twitchParceiros', { oficiais });
+      }
     }
 
     if (p.t === 'welcome') {

@@ -150,3 +150,16 @@ input.sniper__input[type='number']::-webkit-inner-spin-button { -webkit-appearan
 .sniper__scan--acima { color: var(--muted); }
 .sniper__scan--sem-id, .sniper__scan--sem-teto, .sniper__scan--limite, .sniper__scan--velho { color: #d9a21b; }
 .sniper__scan--fora-do-mercado { color: #4f8cff; }
+
+/* Esconde a barra de rolagem em todo o painel. */
+.sniper,
+.sniper * {
+  scrollbar-width: none;       /* Firefox */
+  -ms-overflow-style: none;    /* IE/Edge antigo */
+}
+.sniper::-webkit-scrollbar,
+.sniper *::-webkit-scrollbar {
+  display: none;               /* Chromium/Electron */
+  width: 0;
+  height: 0;
+}

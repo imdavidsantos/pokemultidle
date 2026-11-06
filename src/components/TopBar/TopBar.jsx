@@ -57,7 +57,7 @@ export default function TopBar({
         aria-pressed={!!twitchOpen}
         title="Twitch Presence: presença nas lives das contas"
       >
-        TwitchPresence
+        FarmTwitch
       </button>
       <button
         className={`topbar__tab topbar__hunt ${kickOpen ? 'is-active' : ''}`}
@@ -65,7 +65,7 @@ export default function TopBar({
         aria-pressed={!!kickOpen}
         title="Kick Presence: presença nas lives das contas"
       >
-        KickPresence
+        FarmKick
       </button>
       <SettingsMenu />
     </header>

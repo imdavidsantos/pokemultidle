@@ -1,12 +1,14 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, useMemo } from 'react';
 import { PHONE_HEIGHT, PHONE_WIDTH, GAME_URL, VIRTUAL_HEIGHT, VIRTUAL_WIDTH } from '../../config';
 import { registrarEvento, useSniperConfig, registrarEnviador } from '../../utils/sniper/sniperStore';
+import { atualizarParceirosKick, definirAtualizadorParceirosKick } from '../../utils/kick/kickStore';
 import { comprarItem, listarItens } from '../../utils/restock';
 import { copiarFicha } from '../../utils/pokemon/copiarFicha';
 import { REAPPLY_EVENTS } from '../../constants/zoom';
 import { abrirAnuncioRmt } from '../../utils/rmt';
 import { venderDepot } from '../../utils/depot';
 import './GameView.css';
+import { atualizarParceirosTwitch, definirAtualizadorParceirosTwitch } from '../../utils/twitch/twitchStore';
 
 /**
  * Renderiza o jogo numa "tela de PC" virtual (1920 de largura, altura proporcional ao painel)
@@ -124,6 +126,10 @@ const GameView = forwardRef(function GameView({ slot, muted, volume, zoom, phone
     };
   }, [applySettings, ativo, resetKey]);
 
+  // a cada 24 h sem confirmação, o kickStore pede um estado novo recarregando uma das telas do jogo
+  useEffect(() => definirAtualizadorParceirosKick(() => { try { webviewRef.current?.reload(); } catch { /* não pronto */ } }), []);
+  useEffect(() => definirAtualizadorParceirosTwitch(() => { try { webviewRef.current?.reload(); } catch { /* não pronto */ } }), []);
+
   useEffect(() => registrarEnviador(slot, (pedido) => webviewRef.current?.send('pm-loja', pedido)), [slot]);
 
   // Aplica na hora quando o usuário mexe nos controles
@@ -139,7 +145,9 @@ const GameView = forwardRef(function GameView({ slot, muted, volume, zoom, phone
       if (e.channel !== 'pm-tap') return;
       const ev = e.args[0];
       registrarEvento(slot, ev);
-      if (ev?.tipo === 'preload' || ev?.tipo === 'instalado') enviar();   // o jogo avisou: manda a config
+      if (ev?.tipo === 'kickParceiros') atualizarParceirosKick(ev.dados);          // lista de canais parceiros da Kick
+      if (ev?.tipo === 'twitchParceiros') atualizarParceirosTwitch(ev.dados);  // lista de canais parceiros da Twitch
+      if (ev?.tipo === 'preload' || ev?.tipo === 'instalado') enviar();        // o jogo avisou: manda a config
     };
     wv.addEventListener('ipc-message', onIpc);
     registrarEvento(slot, { tipo: 'erro', dados: { etapa: 'teste', msg: 'GameView ligado' } });

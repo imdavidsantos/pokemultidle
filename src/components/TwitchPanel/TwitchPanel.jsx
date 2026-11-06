@@ -2,14 +2,24 @@ import React, { useEffect } from 'react';
 import {
   checarTwitch, iniciarTodasTwitch, iniciarPonteTwitch, iniciarTwitch, instalarTwitch,
   pararTodasTwitch, pararTwitch, salvarTwitch, twitchDisponivel,
-  useTwitchChecagem, useTwitchConfig, useTwitchEstado, useTwitchPip,
-  definirAutoIniciar, useTwitchAutoIniciar
+  useTwitchChecagem, useTwitchConfig, useTwitchEstado, useTwitchPip, useTwitchParceiros, streamersDaConta,
+  definirAutoIniciar, useTwitchAutoIniciar,
+  prioridadeDaConta, alternarStreamerTwitch, definirTodosTwitch, alternarPrioridadeTwitch, moverPrioridadeTwitch,
 } from '../../utils/twitch/twitchStore';
 
 const GOLD = { borderColor: '#f5b800', color: '#f5b800', background: 'rgba(245, 184, 0, 0.12)' };
 const CARD = { display: 'flex', flexDirection: 'column', gap: 8, padding: 10, border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8 };
 const CAMPO = { display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, minWidth: 0 };
 const INPUT = { width: '100%', boxSizing: 'border-box' };
+
+const haQuanto = (t) => {
+  if (!t) return 'nunca';
+  const min = Math.max(0, Math.round((Date.now() - t) / 60000));
+  if (min < 1) return 'agora há pouco';
+  if (min < 60) return `há ${min} min`;
+  const h = Math.round(min / 60);
+  return h < 48 ? `há ${h} h` : `há ${Math.round(h / 24)} dias`;
+};
 
 const ROTULO_ESTADO = {
   parado: 'Parado', iniciando: 'Iniciando…', login: 'Aguardando login', rodando: 'Rodando', erro: 'Erro',
@@ -22,6 +32,75 @@ function Interruptor({ rotulo, valor, onChange }) {
       <input type="checkbox" checked={!!valor} onChange={(e) => onChange(e.target.checked)} />
       {rotulo}
     </label>
+  );
+}
+
+const BTN_MINI = { padding: '0 6px', lineHeight: '20px', minWidth: 24 };
+
+function Streamers({ slot, cfg, ativo }) {
+  const parc = useTwitchParceiros();
+  const off = new Set(cfg.desativados);
+  const lista = parc.lista;
+  const todosAtivos = lista.length > 0 && lista.every((p) => !off.has(p.slug));
+  const nomeDe = Object.fromEntries(lista.map((p) => [p.slug, p.nome]));
+  const prio = prioridadeDaConta(cfg);
+  const total = streamersDaConta(cfg).length;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <b style={{ fontSize: 13 }}>Streamers</b>
+        <Interruptor rotulo="Ativar todos" valor={todosAtivos} onChange={(v) => definirTodosTwitch(slot, v)} />
+      </div>
+
+      {lista.length === 0 ? (
+        <small style={{ opacity: 0.75 }}>Ainda não recebi a lista de parceiros (abra uma conta do jogo e espere carregar).</small>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 4, maxHeight: 190, overflow: 'auto', padding: 2 }}>
+          {lista.map((p) => (
+            <div key={p.slug} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4, fontSize: 12 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                <input type="checkbox" checked={!off.has(p.slug)} onChange={(e) => alternarStreamerTwitch(slot, p.slug, e.target.checked)} />
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.nome}</span>
+              </label>
+              <button
+                type="button"
+                className="sniper__btn"
+                style={{ ...BTN_MINI, ...(prio.includes(p.slug) ? GOLD : null) }}
+                title={prio.includes(p.slug) ? 'Tirar da lista de prioridades' : 'Adicionar à lista de prioridades'}
+                onClick={() => alternarPrioridadeTwitch(slot, p.slug)}
+              >
+                {prio.includes(p.slug) ? '★' : '☆'}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {lista.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <span style={{ fontSize: 12 }}>
+            Prioridades {prio.length ? '(o de cima é assistido primeiro)' : '— nenhuma: segue a ordem da lista. Use a ☆ para escolher.'}
+          </span>
+          {prio.map((slug, i) => (
+            <div key={slug} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, opacity: off.has(slug) ? 0.45 : 1 }}>
+              <span style={{ width: 18, textAlign: 'right' }}>{i + 1}.</span>
+              <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {nomeDe[slug]}{off.has(slug) ? ' (desativado)' : ''}
+              </span>
+              <button type="button" className="sniper__btn" style={BTN_MINI} disabled={i === 0} onClick={() => moverPrioridadeTwitch(slot, slug, -1)} aria-label="Subir">▲</button>
+              <button type="button" className="sniper__btn" style={BTN_MINI} disabled={i === prio.length - 1} onClick={() => moverPrioridadeTwitch(slot, slug, 1)} aria-label="Descer">▼</button>
+              <button type="button" className="sniper__btn" style={BTN_MINI} onClick={() => alternarPrioridadeTwitch(slot, slug)} aria-label="Remover">✕</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <small style={{ opacity: 0.75 }}>
+        Enviado ao miner: {total} canais (prioridades primeiro, depois os outros ativados).
+        {ativo ? ' Mudanças reiniciam o miner sozinho em alguns segundos.' : ''}
+      </small>
+    </div>
   );
 }
 
@@ -71,11 +150,7 @@ function Conta({ slot, nome }) {
         </label>
       </div>
 
-      <label style={CAMPO}>
-        Streamers (um por linha ou separados por vírgula)
-        <textarea className="sniper__input" style={{ ...INPUT, minHeight: 56, resize: 'vertical' }} value={cfg.streamers}
-          placeholder={'streamer1\nstreamer2'} onChange={(e) => mudar({ streamers: e.target.value })} />
-      </label>
+      <Streamers slot={slot} cfg={cfg} ativo={ativo} />
 
       {est.estado === 'login' && est.codigo && (
         <div style={{ padding: 8, borderRadius: 6, ...GOLD, border: '1px solid #f5b800' }}>
@@ -100,6 +175,7 @@ export default function TwitchPanel({ accounts = [], onClose }) {
   const chk = useTwitchChecagem();
   const pip = useTwitchPip();
   const auto = useTwitchAutoIniciar();
+  const parc = useTwitchParceiros();
 
   useEffect(() => { iniciarPonteTwitch(); }, []);
 
@@ -140,6 +216,23 @@ export default function TwitchPanel({ accounts = [], onClose }) {
             )}
           </div>
         )}
+
+        <div style={CARD}>
+          <span style={{ fontSize: 13 }}>
+            {parc.lista.length
+              ? `Canais parceiros: ${parc.lista.length} (confirmado ${haQuanto(parc.checadoEm)}, última mudança ${haQuanto(parc.atualizadoEm)})`
+              : 'Canais parceiros: ainda não recebi a lista (abra uma conta do jogo e espere carregar).'}
+          </span>
+          {parc.novos.length > 0 && (
+            <span style={{ fontSize: 12, color: '#86efac' }}>Novo(s) na última mudança: {parc.novos.join(', ')}</span>
+          )}
+          {parc.lista.length > 0 && (
+            <details>
+              <summary style={{ fontSize: 12, cursor: 'pointer' }}>Ver lista</summary>
+              <div style={{ fontSize: 11, marginTop: 6 }}>{parc.lista.map((p) => p.nome).join(', ')}</div>
+            </details>
+          )}
+        </div>
 
         <Interruptor rotulo="Iniciar as contas sozinho ao abrir o app" valor={auto} onChange={definirAutoIniciar} />
 

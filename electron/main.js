@@ -9,7 +9,7 @@ if (!app.isPackaged) {
 }
 
 const isDev = process.env.NODE_ENV === 'development';
-const ABRIR_DEVTOOLS = false;   // só vale no npm run dev; sempre mudar quando quiser abrir o devtools
+const ABRIR_DEVTOOLS = false;    // só vale no npm run dev; sempre mudar quando quiser abrir o devtools
 const VER_DESEMPENHO = false;   // só vale no npm run dev; sempre mudar quando quiser ver o desempenho
 
 const CHECK_INTERVAL_MS = 12 * 60 * 60 * 1000; // 12 horas
