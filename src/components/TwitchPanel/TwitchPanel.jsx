@@ -7,7 +7,7 @@ import {
   prioridadeDaConta, alternarStreamerTwitch, definirTodosTwitch, alternarPrioridadeTwitch, moverPrioridadeTwitch,
 } from '../../utils/twitch/twitchStore';
 
-const GOLD = { borderColor: '#f5b800', color: '#f5b800', background: 'rgba(245, 184, 0, 0.12)' };
+const ROXO = { borderColor: '#9146FF', color: '#9146FF', background: 'rgba(145, 70, 255, 0.12)' };
 const CARD = { display: 'flex', flexDirection: 'column', gap: 8, padding: 10, border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8 };
 const CAMPO = { display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, minWidth: 0 };
 const INPUT = { width: '100%', boxSizing: 'border-box' };
@@ -66,7 +66,7 @@ function Streamers({ slot, cfg, ativo }) {
               <button
                 type="button"
                 className="sniper__btn"
-                style={{ ...BTN_MINI, ...(prio.includes(p.slug) ? GOLD : null) }}
+                style={{ ...BTN_MINI, ...(prio.includes(p.slug) ? ROXO : null) }}
                 title={prio.includes(p.slug) ? 'Tirar da lista de prioridades' : 'Adicionar à lista de prioridades'}
                 onClick={() => alternarPrioridadeTwitch(slot, p.slug)}
               >
@@ -118,7 +118,7 @@ function Conta({ slot, nome }) {
         <button
           type="button"
           className="sniper__btn"
-          style={{ whiteSpace: 'nowrap', fontWeight: 600, ...(ativo ? GOLD : null) }}
+          style={{ whiteSpace: 'nowrap', fontWeight: 600, ...(ativo ? ROXO : null) }}
           onClick={() => (ativo ? pararTwitch(slot) : iniciarTwitch(slot))}
         >
           {ativo ? '■ Parar' : '▶ Iniciar'}
@@ -153,7 +153,7 @@ function Conta({ slot, nome }) {
       <Streamers slot={slot} cfg={cfg} ativo={ativo} />
 
       {est.estado === 'login' && est.codigo && (
-        <div style={{ padding: 8, borderRadius: 6, ...GOLD, border: '1px solid #f5b800' }}>
+        <div style={{ padding: 8, borderRadius: 6, ...ROXO, border: '1px solid #f5b800' }}>
           Entre em <b>twitch.tv/activate</b> e digite o código <b style={{ fontSize: 16, letterSpacing: 2 }}>{est.codigo}</b>
           {' '}(a página já foi aberta no navegador). Só é preciso uma vez por conta.
         </div>
