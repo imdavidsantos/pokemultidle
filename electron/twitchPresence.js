@@ -1,11 +1,12 @@
-// PROCESSO PRINCIPAL do Electron (CommonJS). Coloque ao lado do seu main.js.
-// Gerencia o miner da pasta "twitch-presence": confere se a pasta existe, gera a config de cada conta
+// Gerencia o miner da pasta "mods/".
 // a partir das configurações do app e roda um processo Python por conta (até 4).
 const fs = require('fs');
 const path = require('path');
 const { spawn, spawnSync } = require('child_process');
 
-const NOME_PASTA = 'twitch-presence';
+// Pasta "mods": os arquivos dos miners da Twitch e da Kick ficam juntos, direto nela (sem subpasta por miner).
+const NOME_MODS = 'mods';
+const NOME_MINER = 'Twitch-Channel-Points-Miner-v3-3.19.6';   // subpasta deste miner dentro de mods/
 const MAX_LINHAS = 200;
 const ANSI = /\x1b\[[0-9;]*m/g;
 const RE_USUARIO = /^[A-Za-z0-9_]{1,25}$/;       // vale para a conta e para os streamers
@@ -17,15 +18,17 @@ const isRaiz = (dir) => {
 };
 
 // Procura a raiz do miner (a pasta que contém TwitchChannelPointsMiner/). Aceita o zip extraído com pasta dentro de pasta.
-function acharRaiz(base) {
+function acharRaiz(base, nivel = 0) {
   try {
     if (!fs.statSync(base).isDirectory()) return null;
   } catch { return null; }
   if (isRaiz(base)) return base;
+  if (nivel >= 3) return null;   // aceita o zip extraído com pastas dentro de pastas (até 3 níveis)
   try {
     for (const nome of fs.readdirSync(base)) {
-      const sub = path.join(base, nome);
-      if (fs.statSync(sub).isDirectory() && isRaiz(sub)) return sub;
+      if (nome === 'node_modules' || nome.startsWith('.') || nome === '__pycache__') continue;
+      const r = acharRaiz(path.join(base, nome), nivel + 1);
+      if (r) return r;
     }
   } catch { /* sem acesso */ }
   return null;
@@ -95,15 +98,20 @@ function criarGerenciador({ app, shell, enviar, pastaExtra }) {
 
   // ---------- 1) a pasta existe? ----------
   function localizarPasta() {
+    const bases = [
+      app.getPath('userData'),
+      path.join(__dirname, '..'),   // dev: raiz do projeto (electron/ fica dentro dela)
+      path.dirname(app.getPath('exe')),
+      app.getAppPath(),
+      process.resourcesPath,
+      process.cwd(),
+    ].filter(Boolean);
     const candidatos = [
-      pastaExtra && pastaExtra(),
-      process.env.TWITCH_PRESENCE_DIR,
-      path.join(app.getPath('userData'), NOME_PASTA),
-      path.join(__dirname, '..', NOME_PASTA),   // dev: raiz do projeto (electron/ fica dentro dela)
-      path.join(path.dirname(app.getPath('exe')), NOME_PASTA),
-      path.join(app.getAppPath(), NOME_PASTA),
-      process.resourcesPath && path.join(process.resourcesPath, NOME_PASTA),
-      path.join(process.cwd(), NOME_PASTA),
+      pastaExtra && pastaExtra(),                                   // caminho direto da pasta do miner
+      process.env.TWITCH_MINER_DIR,                                         // idem, por variável de ambiente
+      process.env.MODS_DIR,                                           // caminho da pasta mods
+      ...bases.map((b) => path.join(b, NOME_MODS, NOME_MINER)),      // <base>/mods/Twitch-Channel-Points-Miner-v3-3.19.6
+      ...bases.map((b) => path.join(b, NOME_MODS)),                  // <base>/mods (fallback: procura dentro)
     ].filter(Boolean);
     for (const base of candidatos) {
       const raiz = acharRaiz(base);
@@ -141,10 +149,10 @@ function criarGerenciador({ app, shell, enviar, pastaExtra }) {
     prontaCache = null;   // só fica preenchido se a checagem inteira passar
     const { raiz, procurou } = localizarPasta();
     if (!raiz) {
-      return { ok: false, etapa: 'pasta', mensagem: `Pasta "${NOME_PASTA}" não encontrada.`, procurou };
+      return { ok: false, etapa: 'pasta', mensagem: `Pasta "${NOME_MODS}" não encontrada.`, procurou };
     }
     const py = acharPython(raiz);
-    if (!py) return { ok: false, etapa: 'python', raiz, mensagem: 'Python 3 não encontrado. Instale o Python ou crie uma pasta "venv" dentro de twitch-presence.' };
+    if (!py) return { ok: false, etapa: 'python', raiz, mensagem: 'Python 3 não encontrado. Instale o Python ou crie uma pasta "venv" dentro de mods.' };
     const t = spawnSync(py.cmd, [...py.args, '-c', 'import TwitchChannelPointsMiner.runner'], {
       encoding: 'utf8', windowsHide: true, env: envPython(raiz), cwd: raiz,
     });
@@ -156,13 +164,17 @@ function criarGerenciador({ app, shell, enviar, pastaExtra }) {
     return { ok: true, raiz, mensagem: 'Pasta encontrada e pronta.' };
   }
 
+  // Os dois miners têm requirements.txt e ficam na mesma pasta: use "requirements-twitch.txt" para o deste miner
+  // (se não existir, cai no requirements.txt comum).
+  const arqRequisitos = (raiz) => (fs.existsSync(path.join(raiz, 'requirements-twitch.txt')) ? 'requirements-twitch.txt' : 'requirements.txt');
+
   function instalarDependencias() {
     const { raiz } = localizarPasta();
-    if (!raiz) return Promise.resolve({ ok: false, mensagem: `Pasta "${NOME_PASTA}" não encontrada.` });
+    if (!raiz) return Promise.resolve({ ok: false, mensagem: `Pasta "${NOME_MODS}" não encontrada.` });
     const py = acharPython(raiz);
     if (!py) return Promise.resolve({ ok: false, mensagem: 'Python 3 não encontrado.' });
     return new Promise((resolve) => {
-      const p = spawn(py.cmd, [...py.args, '-m', 'pip', 'install', '-r', 'requirements.txt'], { cwd: raiz, windowsHide: true, env: envPython(raiz) });
+      const p = spawn(py.cmd, [...py.args, '-m', 'pip', 'install', '-r', arqRequisitos(raiz)], { cwd: raiz, windowsHide: true, env: envPython(raiz) });
       const linha = (b) => String(b).split(/\r?\n/).filter(Boolean).forEach((l) => enviar('twitch:evento', { slot: '0', tipo: 'pip', linha: l.slice(0, 300) }));
       p.stdout.on('data', linha); p.stderr.on('data', linha);
       p.on('error', (e) => resolve({ ok: false, mensagem: e.message }));

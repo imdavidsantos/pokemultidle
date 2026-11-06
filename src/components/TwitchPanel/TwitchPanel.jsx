@@ -123,7 +123,7 @@ export default function TwitchPanel({ accounts = [], onClose }) {
           <div style={{ ...CARD, borderColor: chk?.ok ? '#4ade80' : '#f5b800' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 13 }}>
-                {chk == null ? 'Verificando a pasta twitch-presence…' : `${chk.ok ? '✓' : '✗'} ${chk.mensagem}`}
+                {chk == null ? 'Verificando a pasta mods…' : `${chk.ok ? '✓' : '✗'} ${chk.mensagem}`}
               </span>
               <div style={{ display: 'flex', gap: 6 }}>
                 <button className="sniper__btn" onClick={checarTwitch}>Verificar de novo</button>

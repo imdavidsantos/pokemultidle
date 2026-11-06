@@ -2,6 +2,7 @@ const { app, BrowserWindow, shell, dialog, ipcMain, webContents, session } = req
 const path = require('path');
 const fs = require('fs');
 const { setupTwitchPresence } = require('./twitchPresence');
+const { setupKickPresence } = require('./kickPresence');
 
 if (!app.isPackaged) {
   app.setPath('userData', path.join(app.getPath('appData'), 'pokemultidle-dev'));
@@ -403,6 +404,14 @@ app.whenReady().then(() => {
 
   // Twitch Presence: registra os canais IPC uma vez (o miner roda em processos Python, um por conta)
   setupTwitchPresence({
+    app, ipcMain, shell,
+    send: (canal, payload) => {
+      if (janelaPrincipal && !janelaPrincipal.isDestroyed()) janelaPrincipal.webContents.send(canal, payload);
+    },
+  });
+
+  // Kick Presence: mesmo esquema do Twitch (um processo Python por conta)
+  setupKickPresence({
     app, ipcMain, shell,
     send: (canal, payload) => {
       if (janelaPrincipal && !janelaPrincipal.isDestroyed()) janelaPrincipal.webContents.send(canal, payload);

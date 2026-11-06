@@ -14,6 +14,7 @@ export default function TopBar({
   huntOpen, onToggleHunt,
   sniperOpen, onToggleSniper,
   twitchOpen, onToggleTwitch,
+  kickOpen, onToggleKick,
 }) {
   return (
     <header className="topbar">
@@ -57,6 +58,14 @@ export default function TopBar({
         title="Twitch Presence: presença nas lives das contas"
       >
         TwitchPresence
+      </button>
+      <button
+        className={`topbar__tab topbar__hunt ${kickOpen ? 'is-active' : ''}`}
+        onClick={onToggleKick}
+        aria-pressed={!!kickOpen}
+        title="Kick Presence: presença nas lives das contas"
+      >
+        KickPresence
       </button>
       <SettingsMenu />
     </header>

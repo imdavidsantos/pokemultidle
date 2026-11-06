@@ -23,3 +23,18 @@ contextBridge.exposeInMainWorld('twitch', {
     return () => ipcRenderer.removeListener('twitch:evento', f);
   },
 });
+
+// Kick Presence
+contextBridge.exposeInMainWorld('kick', {
+  checar: () => ipcRenderer.invoke('kick:checar'),
+  instalar: () => ipcRenderer.invoke('kick:instalar'),
+  iniciar: (slot, cfg) => ipcRenderer.invoke('kick:iniciar', slot, cfg),
+  parar: (slot) => ipcRenderer.invoke('kick:parar', slot),
+  pararTodas: () => ipcRenderer.invoke('kick:parar-todas'),
+  status: () => ipcRenderer.invoke('kick:status'),
+  aoMudar: (cb) => {
+    const f = (_e, dados) => cb(dados);
+    ipcRenderer.on('kick:evento', f);
+    return () => ipcRenderer.removeListener('kick:evento', f);
+  },
+});

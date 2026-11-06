@@ -1,8 +1,10 @@
 import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { useTwitchAutoStart } from './utils/twitch/useTwitchAutoStart';
+import { useKickAutoStart } from './utils/kick/useKickAutoStart';
 import AccountPane from './components/AccountPane/AccountPane.jsx';
 import SniperPanel from './components/SniperPanel/SniperPanel.jsx';
 import TwitchPanel from './components/TwitchPanel/TwitchPanel.jsx';
+import KickPanel from './components/KickPanel/KickPanel.jsx';
 import EmptySlot from './components/EmptySlot/EmptySlot.jsx';
 import HuntSim from './components/HuntSim/HuntSim.jsx';
 import TopBar from './components/TopBar/TopBar.jsx';
@@ -16,9 +18,11 @@ const ValePanel = lazy(() => import('./components/ValePane/ValePanel.jsx'));
 export default function App() {
   const { accounts, focusedSlot, layout, addAccount, removeAccount, updateAccount, setFocus, setLayout } = useAccounts();
   useTwitchAutoStart(accounts);
+  useKickAutoStart(accounts);
   const [huntOpen, setHuntOpen] = useState(false);
   const [sniperOpen, setSniperOpen] = useState(false);
   const [twitchOpen, setTwitchOpen] = useState(false);
+  const [kickOpen, setKickOpen] = useState(false);
 
   // Foco numa tela (botão ⤢ de cada tela) continua valendo sobre o layout escolhido
   const focusing = focusedSlot !== null && accounts.some((a) => a.slot === focusedSlot);
@@ -60,9 +64,11 @@ export default function App() {
         huntOpen={huntOpen}
         onToggleHunt={() => setHuntOpen((o) => !o)}
         sniperOpen={sniperOpen}
-        onToggleSniper={() => { setSniperOpen((v) => !v); setHuntOpen(false); setTwitchOpen(false); }}
+        onToggleSniper={() => { setSniperOpen((v) => !v); setHuntOpen(false); setTwitchOpen(false); setKickOpen(false); }}
         twitchOpen={twitchOpen}
-        onToggleTwitch={() => { setTwitchOpen((v) => !v); setHuntOpen(false); setSniperOpen(false); }}
+        onToggleTwitch={() => { setTwitchOpen((v) => !v); setHuntOpen(false); setSniperOpen(false); setKickOpen(false); }}
+        kickOpen={kickOpen}
+        onToggleKick={() => { setKickOpen((v) => !v); setHuntOpen(false); setSniperOpen(false); setTwitchOpen(false); }}
       />
 
       <main
@@ -90,6 +96,7 @@ export default function App() {
       </main>
       {huntOpen && <HuntSim onClose={() => setHuntOpen(false)} />}
       {twitchOpen && <TwitchPanel accounts={accounts} onClose={() => setTwitchOpen(false)} />}
+      {kickOpen && <KickPanel accounts={accounts} onClose={() => setKickOpen(false)} />}
       {sniperOpen && <SniperPanel accounts={accounts} nomesPokemon={pokedexJson.creatures.map((c) => c.name)} onClose={() => setSniperOpen(false)} />}
     </div>
   );
