@@ -7,6 +7,7 @@ import {
   prioridadeDaConta, alternarStreamerTwitch, definirTodosTwitch, alternarPrioridadeTwitch, moverPrioridadeTwitch, useTwitchSaldos
 } from '../../utils/twitch/twitchStore';
 import ResumoFarm from '../../utils/ResumoFarm/ResumoFarm';
+import '../SniperPanel/SniperPanel.css';
 
 const ROXO = { borderColor: '#9146FF', color: '#9146FF', background: 'rgba(145, 70, 255, 0.12)' };
 const CARD = { display: 'flex', flexDirection: 'column', gap: 8, padding: 10, border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8 };

@@ -7,6 +7,7 @@ import {
   prioridadeDaConta, alternarStreamerKick, definirTodosKick, alternarPrioridadeKick, moverPrioridadeKick, useKickSaldos
 } from '../../utils/kick/kickStore';
 import ResumoFarm from '../../utils/ResumoFarm/ResumoFarm';
+import '../SniperPanel/SniperPanel.css';
 
 const VERDE = { borderColor: '#53fc18', color: '#53fc18', background: 'rgba(83, 252, 24, 0.12)' };
 const AVISO = '#f5b800';
