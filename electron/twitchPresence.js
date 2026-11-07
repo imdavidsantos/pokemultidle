@@ -595,11 +595,11 @@ function setupTwitchPresence({ app, ipcMain, shell, send, pastaExtra }) {
   ipcMain.handle('twitch:instalar', () => g.instalarDependencias());
   ipcMain.handle('twitch:iniciar', (_e, slot, cfg) => g.iniciar(slot, cfg));
   ipcMain.handle('twitch:parar', (_e, slot) => g.parar(slot));
-  ipcMain.handle('twitch:resgatar', (_e, cfg, slug, id, texto, canalId, custo, extra) => resgatarRecompensa(cfg, slug, id, texto, canalId, custo, extra));
+  ipcMain.handle('twitch:parar-todas', () => { g.pararTodas(); return { ok: true }; });
   ipcMain.handle('twitch:status', () => g.status());
   ipcMain.handle('twitch:pontos', (_e, cfg, slugs) => buscarPontos(cfg, slugs));   // saldos pelo token (opcional)
   ipcMain.handle('twitch:recompensas', (_e, cfg, slug) => buscarRecompensas(cfg, slug));
-  ipcMain.handle('twitch:resgatar', (_e, cfg, slug, id, texto, canalId, custo, titulo) => resgatarRecompensa(cfg, slug, id, texto, canalId, custo, titulo));
+  ipcMain.handle('twitch:resgatar', (_e, cfg, slug, id, texto, canalId, custo, extra) => resgatarRecompensa(cfg, slug, id, texto, canalId, custo, extra));
   return g;
 }
 
