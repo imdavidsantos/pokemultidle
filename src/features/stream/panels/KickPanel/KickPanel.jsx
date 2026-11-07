@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import {
-  checarKick, iniciarTodasKick, iniciarPonteKick, iniciarKick, instalarKick,
+  kick, checarKick, iniciarTodasKick, iniciarPonteKick, iniciarKick, instalarKick,
   pararTodasKick, pararKick, salvarKick, kickDisponivel,
   useKickChecagem, useKickConfig, useKickEstado, useKickPip, useKickParceiros, streamersDaConta,
   definirAutoIniciar, useKickAutoIniciar,
@@ -8,6 +8,7 @@ import {
 } from '../../adapters/kick';
 import '../../../sniper/SniperPanel/SniperPanel.css';
 import ResumoFarm from '../../ResumoFarm/ResumoFarm';
+import TokenField from '../../TokenField/TokenField';
 
 const VERDE = { borderColor: '#53fc18', color: '#53fc18', background: 'rgba(83, 252, 24, 0.12)' };
 const AVISO = '#f5b800';
@@ -111,7 +112,6 @@ function Conta({ slot, nome }) {
   const saldos = useKickSaldos(slot);
   const cfg = useKickConfig(slot);
   const est = useKickEstado(slot);
-  const [verToken, setVerToken] = useState(false);
   const ativo = est.estado === 'rodando' || est.estado === 'iniciando' || est.estado === 'login';
   const mudar = (patch) => salvarKick(slot, patch);
 
@@ -130,25 +130,10 @@ function Conta({ slot, nome }) {
         </button>
       </div>
 
-      <label style={CAMPO}>
+      <div style={CAMPO}>
         Token da Kick (só o texto depois de “Bearer”)
-        <div style={{ display: 'flex', gap: 6 }}>
-          <input
-            className="sniper__input"
-            style={INPUT}
-            type={verToken ? 'text' : 'password'}
-            autoComplete="off"
-            spellCheck={false}
-            value={cfg.token}
-            placeholder="123456789|xxxxxxxx…"
-            disabled={ativo}
-            onChange={(e) => mudar({ token: e.target.value.trim() })}
-          />
-          <button type="button" className="sniper__btn" onClick={() => setVerToken((v) => !v)}>
-            {verToken ? 'Ocultar' : 'Mostrar'}
-          </button>
-        </div>
-      </label>
+        <TokenField loja={kick} slot={slot} placeholder="123456789|xxxxxxxx…" desabilitado={ativo} />
+      </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8, alignItems: 'start' }}>
         <label style={CAMPO}>
@@ -251,7 +236,7 @@ export default function KickPanel({ accounts = [], onClose }) {
 
         <small style={{ opacity: 0.7 }}>
           Para pegar o token: entre na kick.com, aperte F12 → aba Network → recarregue a página → clique em uma requisição →
-          Headers → copie o que vem depois de “Bearer” em <i>authorization</i>. O token fica salvo só neste computador; se a Kick
+          Headers → copie o que vem depois de “Bearer” em <i>authorization</i>. O token fica salvo só neste computador, criptografado pelo sistema; se a Kick
           deslogar a conta, é preciso colar um novo. Cada conta roda em um processo separado, com configuração e registros próprios.
         </small>
       </div>

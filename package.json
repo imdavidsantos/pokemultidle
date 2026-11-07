@@ -36,21 +36,6 @@
       "build/icon.png",
       "package.json"
     ],
-    "extraResources": [
-      {
-        "from": "mods",
-        "to": "mods",
-        "filter": [
-          "**/*",
-          "!**/venv/**",
-          "!**/.venv/**",
-          "!**/__pycache__/**",
-          "!**/*.pyc",
-          "!**/.git/**",
-          "!**/logs/**"
-        ]
-      }
-    ],
     "publish": [
       { "provider": "github", "owner": "imdavidsantos", "repo": "pokemultidle" }
     ],

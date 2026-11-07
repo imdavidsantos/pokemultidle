@@ -47,7 +47,7 @@ export default function TwitchPontosPanel({ slot, nome, onClose }) {
   const agora = useAgora();
   const [aberto, setAberto] = useState(null);   // login do streamer cuja aba de recompensas está aberta
 
-  const token = String(cfg.token || '').trim();
+  const token = twitch.useTemToken(slot);   // o token fica no cofre do app; aqui só se sabe se existe
   const qtdParceiros = parc.lista.length;
 
   useEffect(() => {

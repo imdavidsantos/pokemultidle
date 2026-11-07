@@ -399,6 +399,16 @@ function criarGerenciador({ app, shell, enviar, pastaExtra }) {
   const slotSeguro = (slot) => String(slot).replace(/[^A-Za-z0-9_-]/g, '_');
   const dirConta = (slot) => path.join(dadosDir, `conta-${slotSeguro(slot)}`);
 
+  // O miner lê o token de um config.json em texto puro. Para não deixar o token solto em disco, o arquivo só existe
+  // enquanto o miner roda: some ao parar, ao fechar o app e (sobras de uma queda) ao abrir o app.
+  const apagarConfig = (dir) => { try { fs.rmSync(path.join(dir, 'config.json'), { force: true }); } catch { /* em uso: tenta de novo depois */ } };
+  const apagarTodosConfigs = () => {
+    let nomes = [];
+    try { nomes = fs.readdirSync(dadosDir); } catch { return; }   // a pasta ainda não existe
+    for (const nome of nomes) apagarConfig(path.join(dadosDir, nome));
+  };
+  apagarTodosConfigs();
+
   // ---------- 4) processo por conta ----------
   const estadoDe = (slot) => contas.get(String(slot)) || { estado: 'parado', codigo: null, linhas: [] };
 
@@ -506,11 +516,13 @@ function criarGerenciador({ app, shell, enviar, pastaExtra }) {
     proc.stderr.on('data', ler);
     proc.on('error', (e) => {
       contas.delete(slot);
+      apagarConfig(dir);
       emitir(slot, { tipo: 'estado', estado: 'erro', mensagem: e.message });
     });
     proc.on('close', (code) => {
       if (resto) tratarLinha(slot, resto, reg);
       contas.delete(slot);
+      apagarConfig(dir);   // o token em texto puro não fica em disco com o miner parado
       const pediu = reg.pediuParar;
       emitir(slot, { tipo: 'estado', estado: pediu || code === 0 ? 'parado' : 'erro', codigo: null, mensagem: pediu || code === 0 ? '' : `O miner terminou com código ${code}.` });
     });
@@ -533,7 +545,7 @@ function criarGerenciador({ app, shell, enviar, pastaExtra }) {
   }
 
   const pararTodas = (sincrono = false) => [...contas.keys()].forEach((s) => parar(s, sincrono));
-  app.on('before-quit', () => pararTodas(true));
+  app.on('before-quit', () => { pararTodas(true); apagarTodosConfigs(); });
 
   const status = () => Object.fromEntries([...contas.entries()].map(([s, r]) => [s, { estado: r.estado, codigo: r.codigo, linhas: r.linhas.slice(-30), saldos: Object.fromEntries(r.saldos), ativos: r.ativos || [] }]));
 
@@ -541,21 +553,23 @@ function criarGerenciador({ app, shell, enviar, pastaExtra }) {
 }
 
 // Registra os canais IPC. Chame uma vez no main.js.
-function setupKickPresence({ app, ipcMain, shell, send, pastaExtra }) {
+// obterToken(slot) devolve o token da conta guardado no cofre (tokenVault.js). A interface só manda o slot.
+function setupKickPresence({ app, ipcMain, shell, send, pastaExtra, obterToken = () => null }) {
+  const cfgDoToken = (slot) => ({ token: obterToken(slot) });
   const g = criarGerenciador({ app, shell, enviar: send, pastaExtra });
   ipcMain.handle('kick:checar', () => g.checar());
   ipcMain.handle('kick:instalar', () => g.instalarDependencias());
-  ipcMain.handle('kick:iniciar', (_e, slot, cfg) => g.iniciar(slot, cfg));
+  ipcMain.handle('kick:iniciar', (_e, slot, cfg) => g.iniciar(slot, { ...(cfg || {}), token: obterToken(slot) }));   // o token nunca vem da interface
   ipcMain.handle('kick:parar', (_e, slot) => g.parar(slot));
   ipcMain.handle('kick:parar-todas', () => { g.pararTodas(); return { ok: true }; });
   ipcMain.handle('kick:status', () => g.status());
-  ipcMain.handle('kick:pontos', (_e, cfg, slugs) => buscarPontos(cfg, slugs));   // saldo pelo token
-  ipcMain.handle('kick:recompensas', (_e, cfg, slug) => buscarRecompensas(cfg, slug));
-  ipcMain.handle('kick:resgatar', (_e, cfg, slug, id, texto) => resgatarRecompensa(cfg, slug, id, texto));
+  ipcMain.handle('kick:pontos', (_e, slot, slugs) => buscarPontos(cfgDoToken(slot), slugs));   // saldo pelo token
+  ipcMain.handle('kick:recompensas', (_e, slot, slug) => buscarRecompensas(cfgDoToken(slot), slug));
+  ipcMain.handle('kick:resgatar', (_e, slot, slug, id, texto) => resgatarRecompensa(cfgDoToken(slot), slug, id, texto));
   return g;
 }
 
 // Mantido no export (usado por testes/ferramentas): procura a raiz deste miner.
 const acharRaiz = (base) => acharRaizEm(base, isRaiz);
 
-module.exports = { setupKickPresence, criarGerenciador, acharRaiz, limparLogsAntigos, lerLinha, aplicarPatchSaldo, buscarPontos, extrairPontos, buscarRecompensas, resgatarRecompensa, normalizarRecompensas };
+module.exports = { setupKickPresence, criarGerenciador, acharRaiz, limparLogsAntigos, lerLinha, aplicarPatchSaldo, tokenValido, buscarPontos, extrairPontos, buscarRecompensas, resgatarRecompensa, normalizarRecompensas };

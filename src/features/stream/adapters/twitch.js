@@ -3,10 +3,11 @@ import { createStreamStore, saldoSubiuComAproximacao } from '../createStreamStor
 
 // Adaptador da Twitch: só o que é específico dela. A lógica comum está em ../stream/createStreamStore.js.
 // Config por conta (salva no localStorage) + estado ao vivo vindo do processo principal (window.twitch).
+// O token (OPCIONAL: cookie auth-token do twitch.tv, só para ver pontos/resgatar recompensas; o miner não usa) NÃO fica na
+// config: vai para o cofre criptografado do processo principal (ver createStreamStore: salvarToken / useTemToken).
 
 export const configPadrao = () => ({
   username: '',          // usuário da Twitch desta conta
-  token: '',             // OPCIONAL: cookie auth-token do twitch.tv, só para ver pontos/resgatar recompensas pelo app (o miner não usa)
   prioridade: [],        // logins de canais parceiros, em ordem de prioridade (o de cima é assistido primeiro)
   desativados: [],       // logins de parceiros que o usuário desmarcou (parceiro novo entra ativado por padrão)
   seguidores: false,     // também assistir canais que a conta segue
@@ -69,6 +70,7 @@ export const useTwitchRecompensas = twitch.useRecompensas;
 export const buscarRecompensasTwitch = twitch.buscarRecompensas;
 export const useTwitchResgate = twitch.useResgate;
 export const resgatarTwitch = twitch.resgatar;
+export const useTwitchTemToken = twitch.useTemToken;
 
 // Hook que retoma o miner desta plataforma ao abrir o app (usado uma vez no App.jsx).
 export const useTwitchAutoStart = createStreamAutoStart(twitch);

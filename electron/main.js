@@ -1,9 +1,10 @@
-const { app, BrowserWindow, shell, dialog, ipcMain, webContents, session } = require('electron');
+const { app, BrowserWindow, shell, dialog, ipcMain, webContents, session, safeStorage } = require('electron');
 const path = require('path');
 const { fileURLToPath } = require('url');
 const fs = require('fs');
-const { setupTwitchPresence } = require('./presence/twitch');
-const { setupKickPresence } = require('./presence/kick');
+const { setupTwitchPresence, tokenValido: tokenValidoTwitch } = require('./presence/twitch');
+const { setupKickPresence, tokenValido: tokenValidoKick } = require('./presence/kick');
+const { setupTokenVault } = require('./tokenVault');
 
 if (!app.isPackaged) {
   app.setPath('userData', path.join(app.getPath('appData'), 'pokemultidle-dev'));
@@ -429,9 +430,17 @@ app.whenReady().then(() => {
   createWindow();
   if (avisos.length) mostrarAvisos(avisos);   // sem await: não segura a abertura do app
 
+  // Cofre dos tokens (criptografados com o safeStorage). Os tokens só são lidos aqui, no processo principal;
+  // a interface só guarda/remove e pergunta quais contas têm token.
+  const cofre = setupTokenVault({
+    app, ipcMain, safeStorage, log,
+    validar: { twitch: tokenValidoTwitch, kick: tokenValidoKick },   // também normaliza (ex.: tira o "Bearer")
+  });
+
   // Twitch Presence: registra os canais IPC uma vez (o miner roda em processos Python, um por conta)
   setupTwitchPresence({
     app, ipcMain, shell,
+    obterToken: (slot) => cofre.obter('twitch', slot),
     send: (canal, payload) => {
       if (janelaPrincipal && !janelaPrincipal.isDestroyed()) janelaPrincipal.webContents.send(canal, payload);
     },
@@ -440,6 +449,7 @@ app.whenReady().then(() => {
   // Kick Presence: mesmo esquema do Twitch (um processo Python por conta)
   setupKickPresence({
     app, ipcMain, shell,
+    obterToken: (slot) => cofre.obter('kick', slot),
     send: (canal, payload) => {
       if (janelaPrincipal && !janelaPrincipal.isDestroyed()) janelaPrincipal.webContents.send(canal, payload);
     },

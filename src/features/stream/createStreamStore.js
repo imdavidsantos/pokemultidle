@@ -37,7 +37,7 @@ export const saldoSubiuExato = (antes, dados) => (antes
  * @param {Function} op.configPadrao        () => config padrão de uma conta
  * @param {Function} op.idDoParceiro        (oficial) => id bruto do canal vindo do jogo
  * @param {Function} op.saldoSubiu          (antes, dados) => boolean
- * @param {Function} op.temCredencial       (cfg) => a conta já pode iniciar o miner?
+ * @param {Function} op.temCredencial       (cfg, { temToken }) => a conta já pode iniciar o miner? (temToken: o cofre tem token desta conta)
  * @param {Function} op.montarResgate       ({ slug, rec, texto, canalId }) => argumentos do resgate depois do token
  * @param {string}   [op.msgSemTokenPontos]       se definida, aparece no painel quando falta token ao consultar saldos
  * @param {string}   [op.msgSemTokenRecompensas]  se definida, exige token para listar recompensas
@@ -158,7 +158,8 @@ export function createStreamStore(op) {
   const usePip = () => useSyncExternalStore(assinar, () => pip);
 
   function salvar(slot, patch) {
-    contas = { ...contas, [String(slot)]: { ...cfgDe(slot), ...patch } };
+    const { token: _naoPersiste, ...seguro } = patch || {};   // o token não vai para a config: ver salvarToken (cofre)
+    contas = { ...contas, [String(slot)]: { ...cfgDe(slot), ...seguro } };
     persistir();
     avisar();
     agendarReinicio();   // se a lista de streamers mudou com o miner ligado, reinicia (com espera, juntando vários cliques)
@@ -369,9 +370,10 @@ export function createStreamStore(op) {
 
   // Inicia só as contas com credencial preenchida. intervaloMs espaça uma conta da outra.
   async function iniciarTodas(slots, intervaloMs = 0) {
+    await cofrePronto;   // precisa saber quais contas têm token (Kick só inicia com token)
     let primeira = true;
     for (const slot of slots) {
-      if (!temCredencial(cfgDe(slot))) continue;
+      if (!temCredencial(cfgDe(slot), { temToken: temToken(slot) })) continue;
       if (!primeira && intervaloMs) await esperar(intervaloMs);
       primeira = false;
       await iniciar(slot);
@@ -410,8 +412,7 @@ export function createStreamStore(op) {
     const t = ponte();
     if (!t?.pontos) return DESKTOP;
     if (buscandoPontos.has(k)) return { ok: true };
-    const cfg = cfgDe(k);
-    if (!String(cfg.token || '').trim()) {
+    if (!temToken(k)) {
       if (msgSemTokenPontos) setStatusPontos(k, { carregando: false, erro: msgSemTokenPontos });
       return { ok: false, mensagem: 'Sem token.' };
     }
@@ -421,7 +422,7 @@ export function createStreamStore(op) {
     buscandoPontos.add(k);
     setStatusPontos(k, { carregando: true });
     try {
-      const r = await t.pontos({ token: cfg.token }, slugs);
+      const r = await t.pontos(k, slugs);   // o processo principal usa o token do cofre desta conta
       const agora = Date.now();
       for (const [canal, v] of Object.entries(r?.saldos || {})) {
         const antes = saldos[k]?.[canal];
@@ -454,14 +455,14 @@ export function createStreamStore(op) {
     const chave = `${slot}:${slug}`;
     const t = ponte();
     if (!t?.recompensas) return DESKTOP;
-    if (msgSemTokenRecompensas && !String(cfgDe(slot).token || '').trim()) {
+    if (msgSemTokenRecompensas && !temToken(slot)) {
       setRec(chave, { carregando: false, erro: msgSemTokenRecompensas });
       return { ok: false, mensagem: 'Sem token.' };
     }
     if (recompensas[chave]?.carregando) return { ok: true };
     setRec(chave, { carregando: true, erro: '' });
     try {
-      const r = await t.recompensas({ token: cfgDe(slot).token }, slug);
+      const r = await t.recompensas(String(slot), slug);
       setRec(chave, r?.ok
         ? { carregando: false, erro: '', lista: r.lista || [], ...(exigeCanalId ? { canalId: r.canalId || '' } : {}), t: Date.now() }
         : { carregando: false, erro: r?.mensagem || 'Falha ao buscar as recompensas.' });
@@ -489,7 +490,7 @@ export function createStreamStore(op) {
     }
     setResgate(slot, { id: rec.id, msg: '', ok: true });
     try {
-      const r = await t.resgatar({ token: cfgDe(slot).token }, ...montarResgate({ slug, rec, texto, canalId }));
+      const r = await t.resgatar(String(slot), ...montarResgate({ slug, rec, texto, canalId }));
       setResgate(slot, { id: '', msg: r?.mensagem || (r?.ok ? 'Resgatado! Chegará no jogo em 1 minuto!' : 'Falha ao resgatar.'), ok: !!r?.ok });
       if (r?.ok) { buscarPontos(slot); buscarRecompensas(slot, slug); }   // atualiza saldo e limites
       return r;
@@ -499,8 +500,96 @@ export function createStreamStore(op) {
     }
   }
 
+  // ---------- tokens ----------
+  // Os tokens ficam criptografados no processo principal (electron/tokenVault.js, safeStorage). Aqui o app só sabe
+  // QUAIS contas têm token (nunca o valor): quem consulta a plataforma e inicia o miner é o processo principal,
+  // que busca o token no cofre pelo número da conta.
+  const cofre = () => (typeof window !== 'undefined' ? window.tokens : undefined);
+  let tokens = {};                                          // slot -> true (tem token no cofre)
+  let infoCofre = { pronto: false, persistente: null };     // persistente: false = sem cofre do sistema (token só em memória)
+  let cofrePronto = Promise.resolve();                      // termina quando a lista de tokens foi lida e a migração acabou
+  const temToken = (slot) => !!tokens[String(slot)];
+  const useTemToken = (slot) => useSyncExternalStore(assinar, () => !!tokens[String(slot)]);
+  const useTokenInfo = () => useSyncExternalStore(assinar, () => infoCofre);
+
+  // Versões antigas guardavam o token em texto puro na config (localStorage). Move para o cofre e apaga a cópia antiga.
+  // Sem cofre do sistema (só memória) a cópia antiga fica, para o token não se perder ao fechar o app.
+  async function migrarTokensAntigos(c) {
+    let mudou = false;
+    for (const [slot, cfg] of Object.entries(contas)) {
+      const antigo = String(cfg?.token || '').trim();
+      if (!antigo) continue;
+      const r = await c.salvar(id, slot, antigo);
+      const apagarAntigo = (r?.ok && r.persistente) || r?.motivo === 'invalido';   // gravado criptografado, ou lixo que nunca funcionou
+      if (r?.ok) tokens = { ...tokens, [slot]: true };
+      if (apagarAntigo) {
+        const { token: _antigo, ...resto } = cfg;
+        contas = { ...contas, [slot]: resto };
+        mudou = true;
+      }
+    }
+    if (mudou) persistir();
+  }
+
+  async function iniciarCofre() {
+    const c = cofre();
+    if (!c) return;
+    try {
+      const [estado, lista] = await Promise.all([c.estado(), c.lista(id)]);
+      infoCofre = { pronto: true, persistente: !!estado?.persistente };
+      tokens = Object.fromEntries((lista || []).map((s) => [String(s), true]));
+      await migrarTokensAntigos(c);
+    } catch {
+      infoCofre = { pronto: true, persistente: null };
+    }
+    avisar();
+  }
+
+  async function salvarToken(slot, valor) {
+    const c = cofre();
+    if (!c) return DESKTOP;
+    const k = String(slot);
+    try {
+      const r = await c.salvar(id, k, String(valor ?? '').trim());
+      if (r?.ok) {
+        tokens = { ...tokens, [k]: true };
+        if (r.persistente === false) infoCofre = { ...infoCofre, persistente: false };
+        setStatusPontos(k, { erro: '' });
+        buscarPontos(k);   // com o token novo, já atualiza o saldo
+      }
+      return r;
+    } catch (e) {
+      return { ok: false, mensagem: e?.message || 'Não consegui salvar o token.' };
+    }
+  }
+
+  async function removerToken(slot) {
+    const c = cofre();
+    if (!c) return DESKTOP;
+    const k = String(slot);
+    try {
+      const r = await c.remover(id, k);
+      if (r?.ok) {
+        const { [k]: _removido, ...resto } = tokens;
+        tokens = resto;
+        if (contas[k]?.token) {   // cópia antiga em texto puro (caso sem cofre do sistema): senão voltaria na próxima abertura
+          const { token: _antigo, ...semToken } = contas[k];
+          contas = { ...contas, [k]: semToken };
+          persistir();
+        }
+        setStatusPontos(k, { erro: '', t: 0 });
+      }
+      return r;
+    } catch (e) {
+      return { ok: false, mensagem: e?.message || 'Não consegui remover o token.' };
+    }
+  }
+
+  cofrePronto = iniciarCofre();
+
   return {
     id, nome, configPadrao, disponivel,
+    temToken, useTemToken, useTokenInfo, salvarToken, removerToken,
     autoIniciarAtivo, useAutoIniciar, definirAutoIniciar,
     useSaldos, limparSaldos,
     useConfig, useEstado, useChecagem, usePip, salvar,

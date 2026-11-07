@@ -2,10 +2,11 @@ import { createStreamAutoStart } from '../createStreamAutoStart';
 import { createStreamStore, saldoSubiuExato } from '../createStreamStore';
 
 // Adaptador da Kick: só o que é específico dela. A lógica comum está em ../stream/createStreamStore.js.
-// Config por conta (salva no localStorage, INCLUINDO o token) + estado ao vivo vindo do processo principal (window.kick).
+// Config por conta (salva no localStorage) + estado ao vivo vindo do processo principal (window.kick).
+// O token Bearer da Kick (DevTools > Network > authorization) NÃO fica na config: vai para o cofre criptografado do
+// processo principal (ver createStreamStore: salvarToken / useTemToken).
 
 export const configPadrao = () => ({
-  token: '',             // token Bearer da Kick desta conta (DevTools > Network > authorization)
   prioridade: [],        // slugs de canais parceiros, em ordem de prioridade (o de cima é assistido primeiro)
   desativados: [],       // slugs de parceiros que o usuário desmarcou (parceiro novo entra ativado por padrão)
   assistidos: 2,         // quantas lives ao mesmo tempo (1 a 5)
@@ -19,7 +20,7 @@ export const kick = createStreamStore({
   configPadrao,
   idDoParceiro: (o) => o.slug,
   saldoSubiu: saldoSubiuExato,   // na Kick o saldo é sempre exato
-  temCredencial: (cfg) => !!String(cfg.token).trim(),   // o login da Kick é só o token
+  temCredencial: (cfg, { temToken }) => temToken,   // o login da Kick é só o token (guardado no cofre)
   msgSemTokenPontos: 'Cole o token da Kick desta conta.',
   montarResgate: ({ slug, rec, texto }) => [slug, rec.id, texto],
   // ativos = canais assistidos agora (vem do log do miner); some quando o miner não está rodando
@@ -69,6 +70,7 @@ export const useKickRecompensas = kick.useRecompensas;
 export const buscarRecompensasKick = kick.buscarRecompensas;
 export const useKickResgate = kick.useResgate;
 export const resgatarKick = kick.resgatar;
+export const useKickTemToken = kick.useTemToken;
 
 // Hook que retoma o miner desta plataforma ao abrir o app (usado uma vez no App.jsx).
 export const useKickAutoStart = createStreamAutoStart(kick);

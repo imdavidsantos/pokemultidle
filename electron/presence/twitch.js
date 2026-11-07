@@ -515,7 +515,9 @@ ANALYTICS_CONFIG = None
 }
 
 // Registra os canais IPC. Chame uma vez no main.js.
-function setupTwitchPresence({ app, ipcMain, shell, send, pastaExtra }) {
+// obterToken(slot) devolve o token da conta guardado no cofre (tokenVault.js). A interface só manda o slot.
+function setupTwitchPresence({ app, ipcMain, shell, send, pastaExtra, obterToken = () => null }) {
+  const cfgDoToken = (slot) => ({ token: obterToken(slot) });
   const g = criarGerenciador({ app, shell, enviar: send, pastaExtra });
   ipcMain.handle('twitch:checar', () => g.checar());
   ipcMain.handle('twitch:instalar', () => g.instalarDependencias());
@@ -523,13 +525,13 @@ function setupTwitchPresence({ app, ipcMain, shell, send, pastaExtra }) {
   ipcMain.handle('twitch:parar', (_e, slot) => g.parar(slot));
   ipcMain.handle('twitch:parar-todas', () => { g.pararTodas(); return { ok: true }; });
   ipcMain.handle('twitch:status', () => g.status());
-  ipcMain.handle('twitch:pontos', (_e, cfg, slugs) => buscarPontos(cfg, slugs));   // saldos pelo token (opcional)
-  ipcMain.handle('twitch:recompensas', (_e, cfg, slug) => buscarRecompensas(cfg, slug));
-  ipcMain.handle('twitch:resgatar', (_e, cfg, slug, id, texto, canalId, custo, extra) => resgatarRecompensa(cfg, slug, id, texto, canalId, custo, extra));
+  ipcMain.handle('twitch:pontos', (_e, slot, slugs) => buscarPontos(cfgDoToken(slot), slugs));   // saldos pelo token (opcional)
+  ipcMain.handle('twitch:recompensas', (_e, slot, slug) => buscarRecompensas(cfgDoToken(slot), slug));
+  ipcMain.handle('twitch:resgatar', (_e, slot, slug, id, texto, canalId, custo, extra) => resgatarRecompensa(cfgDoToken(slot), slug, id, texto, canalId, custo, extra));
   return g;
 }
 
 // Mantido no export (usado por testes/ferramentas): procura a raiz deste miner.
 const acharRaiz = (base) => acharRaizEm(base, isRaiz);
 
-module.exports = { setupTwitchPresence, criarGerenciador, acharRaiz, limparLogsAntigos, lerSaldo, buscarPontos, buscarRecompensas, resgatarRecompensa };
+module.exports = { setupTwitchPresence, criarGerenciador, acharRaiz, limparLogsAntigos, lerSaldo, tokenValido, buscarPontos, buscarRecompensas, resgatarRecompensa };
