@@ -7,6 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawn, spawnSync } = require('child_process');
 const { net } = require('electron');
+const crypto = require('crypto');
 
 // Pasta "mods": os arquivos dos miners da Twitch e da Kick ficam juntos.
 const NOME_MODS = 'mods';
@@ -219,12 +220,22 @@ async function buscarPontos(cfgBruta, slugsBrutos) {
 }
 
 // ---------- recompensas de um streamer (listar e resgatar) ----------
-// ATENÇÃO: estes endereços NÃO foram confirmados. A Kick não documenta o lado "espectador" das recompensas.
-// Abra o canal logado, clique numa recompensa na mão e copie do DevTools (Network) o endereço, o método e o corpo do
-// pedido de listar e do de resgatar. Se forem diferentes, ajuste só as 3 definições abaixo.
-const URL_RECOMPENSAS = (slug) => `https://kick.com/api/v2/channels/${encodeURIComponent(slug)}/rewards`;
+// Endereços conferidos no DevTools (GET .../rewards?is_enabled=true e POST .../rewards/{id}/redeem). A Kick não documenta
+// o lado "espectador" das recompensas, então se algo mudar, copie de novo do DevTools (Network) e ajuste as definições abaixo.
+const URL_RECOMPENSAS = (slug) => `https://kick.com/api/v2/channels/${encodeURIComponent(slug)}/rewards?is_enabled=true`;
 const URL_RESGATE = (slug, id) => `https://kick.com/api/v2/channels/${encodeURIComponent(slug)}/rewards/${encodeURIComponent(id)}/redeem`;
-const corpoResgate = (id, texto) => ({ reward_id: id, ...(texto ? { user_input: texto } : {}) });
+// Confirmado no DevTools: o corpo do resgate é só { transaction_id } com um ULID novo a cada resgate (o id da recompensa vai na URL).
+// O campo do texto digitado (recompensas que pedem mensagem) NÃO foi confirmado: "user_input" é um palpite.
+const ALFABETO_ULID = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+function novoUlid() {
+  let tempo = Date.now();
+  let s = '';
+  for (let i = 0; i < 10; i++) { s = ALFABETO_ULID[tempo % 32] + s; tempo = Math.floor(tempo / 32); }
+  const r = crypto.randomBytes(16);
+  for (let i = 0; i < 16; i++) s += ALFABETO_ULID[r[i] % 32];
+  return s;   // 26 caracteres: 10 de data + 16 aleatórios
+}
+const corpoResgate = (id, texto) => ({ transaction_id: novoUlid(), ...(texto ? { user_input: texto } : {}) });
 const RE_ID_REC = /^[A-Za-z0-9_-]{1,64}$/;
 
 const textoCurto = (v, n) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, n);
@@ -288,9 +299,17 @@ async function resgatarRecompensa(cfgBruta, slugBruto, idBruto, textoBruto) {
   const texto = textoCurto(textoBruto, 500);
   const r = await chamar(URL_RESGATE(slug, id), v.token, { metodo: 'POST', corpo: JSON.stringify(corpoResgate(id, texto)) });
   let msg = '';
-  try { const j = JSON.parse(r.corpo); msg = textoCurto(j?.message ?? j?.error ?? j?.data?.message, 160); } catch { /* sem JSON */ }
+  try {
+    const j = JSON.parse(r.corpo);
+    msg = textoCurto(j?.message ?? j?.error ?? j?.data?.message, 160);
+    // erro de validação (422): mostra qual campo a Kick reclamou, ex.: "reward_id: obrigatório"
+    if (j?.errors && typeof j.errors === 'object') {
+      const det = Object.entries(j.errors).map(([k, v]) => `${k}: ${[].concat(v).join(' ')}`).join(' | ');
+      if (det) msg = `${msg} [${textoCurto(det, 200)}]`.trim();
+    }
+  } catch { /* sem JSON */ }
   if (r.status >= 200 && r.status < 300) return { ok: true, mensagem: msg || 'Resgatado!' };
-  return { ok: false, mensagem: msg || msgHttp(r) };
+  return { ok: false, mensagem: `${msg || msgHttp(r)} (HTTP ${r.status})` };
 }
 
 function criarGerenciador({ app, shell, enviar, pastaExtra }) {

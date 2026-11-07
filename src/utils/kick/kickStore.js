@@ -80,7 +80,10 @@ const persistirSaldos = () => {   // agrupa as gravações: chegam várias por m
 };
 function guardarSaldo(slot, canal, dados) {
   const s = String(slot);
-  const atual = { ...(saldos[s] ?? {}), [canal]: dados };
+  // tGanho = quando o saldo SUBIU pela última vez (o resumo "Farmando" usa isso; `t` também muda a cada consulta)
+  const antes = saldos[s]?.[canal];
+  const subiu = antes ? Number(dados.pontos) > Number(antes.pontos) : dados.ganho > 0;
+  const atual = { ...(saldos[s] ?? {}), [canal]: { ...dados, tGanho: subiu ? (dados.t || Date.now()) : antes?.tGanho } };
   const nomes = Object.keys(atual);
   if (nomes.length > MAX_CANAIS) {   // mantém só os vistos mais recentemente
     nomes.sort((a, b) => (atual[b].t || 0) - (atual[a].t || 0)).slice(MAX_CANAIS).forEach((n) => { delete atual[n]; });
