@@ -4,6 +4,20 @@ const fs = require('fs');
 const path = require('path');
 const { spawn, spawnSync } = require('child_process');
 
+// Roda um processo sem travar o processo principal do Electron (substitui o spawnSync).
+function rodar(cmd, args, opts = {}) {
+  return new Promise((resolve) => {
+    let out = '';
+    let err = '';
+    let p;
+    try { p = spawn(cmd, args, { windowsHide: true, timeout: 60000, ...opts }); } catch (e) { resolve({ status: -1, stdout: '', stderr: String(e.message) }); return; }
+    p.stdout.on('data', (b) => { out += b; });
+    p.stderr.on('data', (b) => { err += b; });
+    p.on('error', (e) => resolve({ status: -1, stdout: out, stderr: err || String(e.message) }));
+    p.on('close', (code) => resolve({ status: code, stdout: out, stderr: err }));
+  });
+}
+
 // Pasta "mods": os arquivos dos miners da Twitch e da Kick ficam juntos, direto nela (sem subpasta por miner).
 const NOME_MODS = 'mods';
 const NOME_MINER = 'Twitch-Channel-Points-Miner-v3-3.19.6';   // subpasta deste miner dentro de mods/
@@ -121,7 +135,7 @@ function criarGerenciador({ app, shell, enviar, pastaExtra }) {
   }
 
   // ---------- 2) Python (venv da própria pasta primeiro) ----------
-  function acharPython(raiz) {
+  async function acharPython(raiz) {
     const win = process.platform === 'win32';
     const candidatos = [
       { cmd: path.join(raiz, 'venv', win ? 'Scripts/python.exe' : 'bin/python'), args: [] },
@@ -132,7 +146,7 @@ function criarGerenciador({ app, shell, enviar, pastaExtra }) {
     ];
     for (const c of candidatos) {
       if (path.isAbsolute(c.cmd) && !fs.existsSync(c.cmd)) continue;
-      const r = spawnSync(c.cmd, [...c.args, '--version'], { encoding: 'utf8', windowsHide: true });
+      const r = await rodar(c.cmd, [...c.args, '--version'], { timeout: 10000 });
       if (r.status === 0) return c;
     }
     return null;
@@ -145,17 +159,15 @@ function criarGerenciador({ app, shell, enviar, pastaExtra }) {
     PYTHONIOENCODING: 'utf-8',
   });
 
-  function checar() {
+  async function checarInterno() {
     prontaCache = null;   // só fica preenchido se a checagem inteira passar
     const { raiz, procurou } = localizarPasta();
     if (!raiz) {
       return { ok: false, etapa: 'pasta', mensagem: `Pasta "${NOME_MODS}" não encontrada.`, procurou };
     }
-    const py = acharPython(raiz);
+    const py = await acharPython(raiz);
     if (!py) return { ok: false, etapa: 'python', raiz, mensagem: 'Python 3 não encontrado. Instale o Python ou crie uma pasta "venv" dentro de mods.' };
-    const t = spawnSync(py.cmd, [...py.args, '-c', 'import TwitchChannelPointsMiner.runner'], {
-      encoding: 'utf8', windowsHide: true, env: envPython(raiz), cwd: raiz,
-    });
+    const t = await rodar(py.cmd, [...py.args, '-c', 'import TwitchChannelPointsMiner.runner'], { env: envPython(raiz), cwd: raiz });
     if (t.status !== 0) {
       const ultima = String(t.stderr || '').trim().split(/\r?\n/).pop() || 'erro desconhecido';
       return { ok: false, etapa: 'dependencias', raiz, mensagem: `Faltam dependências do miner (${ultima}).` };
@@ -164,14 +176,17 @@ function criarGerenciador({ app, shell, enviar, pastaExtra }) {
     return { ok: true, raiz, mensagem: 'Pasta encontrada e pronta.' };
   }
 
+  let checando = null;
+  const checar = () => { if (!checando) checando = checarInterno().finally(() => { checando = null; }); return checando; };
+
   // Os dois miners têm requirements.txt e ficam na mesma pasta: use "requirements-twitch.txt" para o deste miner
   // (se não existir, cai no requirements.txt comum).
   const arqRequisitos = (raiz) => (fs.existsSync(path.join(raiz, 'requirements-twitch.txt')) ? 'requirements-twitch.txt' : 'requirements.txt');
 
-  function instalarDependencias() {
+  async function instalarDependencias() {
     const { raiz } = localizarPasta();
     if (!raiz) return Promise.resolve({ ok: false, mensagem: `Pasta "${NOME_MODS}" não encontrada.` });
-    const py = acharPython(raiz);
+    const py = await acharPython(raiz);
     if (!py) return Promise.resolve({ ok: false, mensagem: 'Python 3 não encontrado.' });
     return new Promise((resolve) => {
       const p = spawn(py.cmd, [...py.args, '-m', 'pip', 'install', '-r', arqRequisitos(raiz)], { cwd: raiz, windowsHide: true, env: envPython(raiz) });
@@ -297,15 +312,17 @@ ANALYTICS_CONFIG = None
     emitir(slot, { tipo: 'log', linha: linha.slice(0, 400) });
   }
 
-  function iniciar(slot, cfgBruta) {
+  async function iniciar(slot, cfgBruta) {
     slot = String(slot);
     if (contas.get(slot)?.proc) return { ok: true, mensagem: 'Já está rodando.' };
 
     // confirma pasta, Python e dependências só na primeira vez (spawnSync trava o processo principal);
     // depois reaproveita o resultado. O botão "Verificar de novo" do painel refaz a checagem.
     if (!prontaCache) {
-      const chk = checar();
+      const chk = await checar();
       if (!chk.ok) { emitir(slot, { tipo: 'estado', estado: 'erro', mensagem: chk.mensagem }); return { ok: false, mensagem: chk.mensagem }; }
+      // outra chamada pode ter iniciado esta conta enquanto a checagem rodava
+      if (contas.get(slot)?.proc) return { ok: true, mensagem: 'Já está rodando.' };
     }
     const { raiz, python } = prontaCache;
 
@@ -350,19 +367,23 @@ ANALYTICS_CONFIG = None
     return { ok: true, mensagem: 'Iniciando…' };
   }
 
-  function parar(slot) {
+  // `sincrono`: só para o encerramento do app (before-quit), quando não dá para esperar um processo assíncrono
+  function parar(slot, sincrono = false) {
     const reg = contas.get(String(slot));
     if (!reg?.proc) return { ok: true };
     reg.pediuParar = true;
     try {
-      if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(reg.proc.pid), '/T', '/F'], { windowsHide: true });
-      else reg.proc.kill('SIGTERM');
+      if (process.platform === 'win32') {
+        const args = ['/pid', String(reg.proc.pid), '/T', '/F'];
+        if (sincrono) spawnSync('taskkill', args, { windowsHide: true });
+        else spawn('taskkill', args, { windowsHide: true }).on('error', () => {});
+      } else reg.proc.kill('SIGTERM');
     } catch { /* já terminou */ }
     return { ok: true };
   }
 
-  const pararTodas = () => [...contas.keys()].forEach(parar);
-  app.on('before-quit', pararTodas);
+  const pararTodas = (sincrono = false) => [...contas.keys()].forEach((s) => parar(s, sincrono));
+  app.on('before-quit', () => pararTodas(true));
 
   const status = () => Object.fromEntries([...contas.entries()].map(([s, r]) => [s, { estado: r.estado, codigo: r.codigo, linhas: r.linhas.slice(-30), saldos: Object.fromEntries(r.saldos) }]));
 

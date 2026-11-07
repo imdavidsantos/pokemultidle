@@ -1,5 +1,6 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, useMemo } from 'react';
-import { PHONE_HEIGHT, PHONE_WIDTH, GAME_URL, VIRTUAL_HEIGHT, VIRTUAL_WIDTH } from '../../config';
+import { BOOST_FPS, PHONE_HEIGHT, PHONE_WIDTH, GAME_URL, VIRTUAL_HEIGHT, VIRTUAL_WIDTH } from '../../config';
+import { aplicarLimiteFps } from '../../utils/fpsLimit';
 import { registrarEvento, useSniperConfig, registrarEnviador } from '../../utils/sniper/sniperStore';
 import { atualizarParceirosKick, definirAtualizadorParceirosKick } from '../../utils/kick/kickStore';
 import { comprarItem, listarItens } from '../../utils/restock';
@@ -14,7 +15,7 @@ import { atualizarParceirosTwitch, definirAtualizadorParceirosTwitch } from '../
  * Renderiza o jogo numa "tela de PC" virtual (1920 de largura, altura proporcional ao painel)
  * e a ajusta com CSS para caber no painel. Cada conta usa uma sessão própria (partition).
  */
-const GameView = forwardRef(function GameView({ slot, muted, volume, zoom, phone, focused, enabled }, ref) {
+const GameView = forwardRef(function GameView({ slot, muted, volume, zoom, phone, focused, enabled, hidden }, ref) {
   const boxRef = useRef(null);
   const webviewRef = useRef(null);
   const settingsRef = useRef({ muted, volume, zoom });
@@ -118,7 +119,7 @@ const GameView = forwardRef(function GameView({ slot, muted, volume, zoom, phone
     };
 
     REAPPLY_EVENTS.forEach((e) => wv.addEventListener(e, onReapply));
-    const timer = setInterval(applySettings, 2000);
+    const timer = setInterval(applySettings, 15000);   // reserva: os eventos acima e os controles já aplicam na hora
 
     return () => {
       clearInterval(timer);
@@ -150,14 +151,23 @@ const GameView = forwardRef(function GameView({ slot, muted, volume, zoom, phone
       if (ev?.tipo === 'preload' || ev?.tipo === 'instalado') enviar();        // o jogo avisou: manda a config
     };
     wv.addEventListener('ipc-message', onIpc);
-    registrarEvento(slot, { tipo: 'erro', dados: { etapa: 'teste', msg: 'GameView ligado' } });
     wv.addEventListener('dom-ready', enviar);
     return () => {
       wv.removeEventListener('ipc-message', onIpc);
-      registrarEvento(slot, { tipo: 'erro', dados: { etapa: 'teste', msg: 'GameView ligado' } });
       wv.removeEventListener('dom-ready', enviar);
     };
   }, [slot, ativo, resetKey]);
+
+  // Conta escondida (modo foco ou layout 1x1): limita o fps do jogo para poupar CPU/GPU; volta ao normal ao reaparecer
+  useEffect(() => {
+    const wv = webviewRef.current;
+    if (!wv) return undefined;
+    const fps = hidden ? BOOST_FPS : 0;
+    const aplicar = () => { aplicarLimiteFps(wv, fps); };
+    aplicar();
+    wv.addEventListener('dom-ready', aplicar);   // página nova perde o limite: reaplica
+    return () => wv.removeEventListener('dom-ready', aplicar);
+  }, [hidden, ativo, resetKey]);
 
   // reenvia quando você muda algo no painel
   useEffect(() => {

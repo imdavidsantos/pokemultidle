@@ -1,5 +1,6 @@
 const { app, BrowserWindow, shell, dialog, ipcMain, webContents, session } = require('electron');
 const path = require('path');
+const { fileURLToPath } = require('url');
 const fs = require('fs');
 const { setupTwitchPresence } = require('./twitchPresence');
 const { setupKickPresence } = require('./kickPresence');
@@ -11,6 +12,18 @@ if (!app.isPackaged) {
 const isDev = process.env.NODE_ENV === 'development';
 const ABRIR_DEVTOOLS = false;    // só vale no npm run dev; sempre mudar quando quiser abrir o devtools
 const VER_DESEMPENHO = false;   // só vale no npm run dev; sempre mudar quando quiser ver o desempenho
+
+// <webview>: só pode abrir os sites que o app usa e só o jogo recebe o preload do app
+const ORIGEM_JOGO = 'https://pokeidle.io';
+const ORIGENS_WEBVIEW = [ORIGEM_JOGO, 'https://pokeidle-gg.pages.dev'];
+const PRELOAD_JOGO = path.resolve(__dirname, 'webview-preload.js');
+const ehPreloadDoJogo = (v) => {
+  if (!v) return false;
+  try {
+    const p = String(v).startsWith('file:') ? fileURLToPath(v) : String(v);
+    return path.resolve(p).toLowerCase() === PRELOAD_JOGO.toLowerCase();
+  } catch { return false; }
+};
 
 const CHECK_INTERVAL_MS = 12 * 60 * 60 * 1000; // 12 horas
 const PRIMEIRA_CHECAGEM_MS = 8000;             // deixa o app abrir antes de checar atualização
@@ -322,6 +335,20 @@ function createWindow() {
       webviewTag: true,            // necessário para <webview>
       backgroundThrottling: false, // mantém os jogos rodando mesmo em segundo plano
     },
+  });
+
+  win.webContents.on('will-attach-webview', (e, webPreferences, params) => {
+    let origem = '';
+    try { origem = new URL(params.src).origin; } catch { /* src inválido */ }
+    if (!ORIGENS_WEBVIEW.includes(origem)) {
+      log.warn(`<webview> bloqueado (origem não permitida): ${params.src}`);
+      e.preventDefault();
+      return;
+    }
+    const preloadOk = origem === ORIGEM_JOGO && (ehPreloadDoJogo(webPreferences.preload) || ehPreloadDoJogo(webPreferences.preloadURL));
+    if (!preloadOk) { delete webPreferences.preload; delete webPreferences.preloadURL; }
+    webPreferences.nodeIntegration = false;
+    webPreferences.nodeIntegrationInSubFrames = false;
   });
 
   win.on('page-title-updated', (e) => e.preventDefault()); // mantém o título do app

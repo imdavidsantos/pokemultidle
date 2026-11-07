@@ -1,4 +1,4 @@
-import React, { useRef, useState, useMemo } from 'react';
+import React, { useRef, useMemo } from 'react';
 import GameView from '../GameView/GameView.jsx';
 import PaneControls from '../PaneControls/PaneControls.jsx';
 import ErrorBoundary from '../ErrorBoundary/ErrorBoundary.jsx';
@@ -7,7 +7,6 @@ import './AccountPane.css';
 
 export default function AccountPane({ account, hidden, focused, canRemove, onChange, onToggleFocus, onRemove }) {
   const gameRef = useRef(null);
-  const [reloadKey, setReloadKey] = useState(0);
 
   const handleRemove = () => {
     if (window.confirm(`Remover "${account.name}" desta janela? O login fica salvo caso você a adicione de novo.`)) {
@@ -36,7 +35,7 @@ export default function AccountPane({ account, hidden, focused, canRemove, onCha
           onChange={onChange}
           onToggleFocus={onToggleFocus}
           onRemove={handleRemove}
-          onReload={() => setReloadKey((k) => k + 1)}
+          onReload={() => gameRef.current?.reload()}
           onCopySheet={handleCopySheet}
           onListItems={() => gameRef.current?.listItems()}
           onBuyItem={onBuyItem}
@@ -46,7 +45,6 @@ export default function AccountPane({ account, hidden, focused, canRemove, onCha
         />
       </ErrorBoundary>
       <GameView
-        key={reloadKey}
         ref={gameRef}
         slot={account.slot}
         muted={account.muted}
@@ -55,6 +53,7 @@ export default function AccountPane({ account, hidden, focused, canRemove, onCha
         phone={!!account.phone}
         focused={focused}
         enabled={account.enabled}
+        hidden={hidden}
       />
     </section>
   );

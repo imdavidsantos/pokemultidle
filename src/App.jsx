@@ -2,18 +2,19 @@ import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { useTwitchAutoStart } from './utils/twitch/useTwitchAutoStart';
 import { useKickAutoStart } from './utils/kick/useKickAutoStart';
 import AccountPane from './components/AccountPane/AccountPane.jsx';
-import SniperPanel from './components/SniperPanel/SniperPanel.jsx';
-import TwitchPanel from './components/TwitchPanel/TwitchPanel.jsx';
-import KickPanel from './components/KickPanel/KickPanel.jsx';
 import EmptySlot from './components/EmptySlot/EmptySlot.jsx';
-import HuntSim from './components/HuntSim/HuntSim.jsx';
 import TopBar from './components/TopBar/TopBar.jsx';
-import pokedexJson from './data/pokedex.json';
 import useAccounts from './hooks/useAccounts';
+import useNomesPokemon from './hooks/useNomesPokemon';
 import { MAX_ACCOUNTS } from './config';
 import './App.css';
 
 const ValePanel = lazy(() => import('./components/ValePane/ValePanel.jsx'));
+// Painéis só são carregados quando abertos (menos JS na abertura do app)
+const SniperPanel = lazy(() => import('./components/SniperPanel/SniperPanel.jsx'));
+const TwitchPanel = lazy(() => import('./components/TwitchPanel/TwitchPanel.jsx'));
+const KickPanel = lazy(() => import('./components/KickPanel/KickPanel.jsx'));
+const HuntSim = lazy(() => import('./components/HuntSim/HuntSim.jsx'));
 
 export default function App() {
   const { accounts, focusedSlot, layout, addAccount, removeAccount, updateAccount, setFocus, setLayout } = useAccounts();
@@ -23,6 +24,7 @@ export default function App() {
   const [sniperOpen, setSniperOpen] = useState(false);
   const [twitchOpen, setTwitchOpen] = useState(false);
   const [kickOpen, setKickOpen] = useState(false);
+  const nomesPokemon = useNomesPokemon(sniperOpen);
 
   // Foco numa tela (botão ⤢ de cada tela) continua valendo sobre o layout escolhido
   const focusing = focusedSlot !== null && accounts.some((a) => a.slot === focusedSlot);
@@ -94,10 +96,12 @@ export default function App() {
           />
         )}
       </main>
-      {huntOpen && <HuntSim onClose={() => setHuntOpen(false)} />}
-      {twitchOpen && <TwitchPanel accounts={accounts} onClose={() => setTwitchOpen(false)} />}
-      {kickOpen && <KickPanel accounts={accounts} onClose={() => setKickOpen(false)} />}
-      {sniperOpen && <SniperPanel accounts={accounts} nomesPokemon={pokedexJson.creatures.map((c) => c.name)} onClose={() => setSniperOpen(false)} />}
+      <Suspense fallback={null}>
+        {huntOpen && <HuntSim onClose={() => setHuntOpen(false)} />}
+        {twitchOpen && <TwitchPanel accounts={accounts} onClose={() => setTwitchOpen(false)} />}
+        {kickOpen && <KickPanel accounts={accounts} onClose={() => setKickOpen(false)} />}
+        {sniperOpen && <SniperPanel accounts={accounts} nomesPokemon={nomesPokemon} onClose={() => setSniperOpen(false)} />}
+      </Suspense>
     </div>
   );
 }

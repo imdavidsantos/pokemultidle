@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { MAX_ACCOUNTS, STORAGE_KEY } from '../config';
 
 const defaultAccount = (slot) => ({
@@ -9,7 +9,6 @@ const defaultAccount = (slot) => ({
   zoom: 1,
   phone: false,
   enabled: true,   // false = webview desmontado (conta desligada)
-  resetKey: 0,     // sobe a cada reset de dados: força remontar o webview
 });
 
 function load() {
@@ -29,9 +28,27 @@ function load() {
 export default function useAccounts() {
   const [state, setState] = useState(load);
 
+  // Grava com um pequeno atraso (zoom/volume geram muitas mudanças seguidas) e garante a gravação ao fechar
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  const salvar = useCallback(() => {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(stateRef.current)); } catch { /* sem espaço */ }
+  }, []);
+
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [state]);
+    const t = setTimeout(salvar, 300);
+    return () => clearTimeout(t);
+  }, [state, salvar]);
+
+  useEffect(() => {
+    window.addEventListener('pagehide', salvar);
+    window.addEventListener('beforeunload', salvar);
+    return () => {
+      window.removeEventListener('pagehide', salvar);
+      window.removeEventListener('beforeunload', salvar);
+      salvar();
+    };
+  }, [salvar]);
 
   const addAccount = useCallback(() => {
     setState((s) => {
@@ -61,14 +78,6 @@ export default function useAccounts() {
     }));
   }, []);
 
-  // depois de limpar os dados da sessão: troca a key do webview para ele recarregar do zero
-  const bumpResetKey = useCallback((slot) => {
-    setState((s) => ({
-      ...s,
-      accounts: s.accounts.map((a) => (a.slot === slot ? { ...a, resetKey: (a.resetKey || 0) + 1 } : a)),
-    }));
-  }, []);
-
   const setFocus = useCallback((slot) => {
     setState((s) => ({ ...s, focusedSlot: slot }));
   }, []);
@@ -84,7 +93,6 @@ export default function useAccounts() {
     addAccount,
     removeAccount,
     updateAccount,
-    bumpResetKey,
     setFocus,
     setLayout,
   };
