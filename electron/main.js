@@ -2,8 +2,8 @@ const { app, BrowserWindow, shell, dialog, ipcMain, webContents, session } = req
 const path = require('path');
 const { fileURLToPath } = require('url');
 const fs = require('fs');
-const { setupTwitchPresence } = require('./twitchPresence');
-const { setupKickPresence } = require('./kickPresence');
+const { setupTwitchPresence } = require('./presence/twitch');
+const { setupKickPresence } = require('./presence/kick');
 
 if (!app.isPackaged) {
   app.setPath('userData', path.join(app.getPath('appData'), 'pokemultidle-dev'));

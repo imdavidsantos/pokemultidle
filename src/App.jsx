@@ -1,20 +1,20 @@
 import React, { Suspense, lazy, useEffect, useState } from 'react';
-import { useTwitchAutoStart } from './utils/twitch/useTwitchAutoStart';
-import { useKickAutoStart } from './utils/kick/useKickAutoStart';
-import AccountPane from './components/AccountPane/AccountPane.jsx';
-import EmptySlot from './components/EmptySlot/EmptySlot.jsx';
-import TopBar from './components/TopBar/TopBar.jsx';
-import useAccounts from './hooks/useAccounts';
-import useNomesPokemon from './hooks/useNomesPokemon';
+import { useTwitchAutoStart } from './features/stream/adapters/twitch';
+import { useKickAutoStart } from './features/stream/adapters/kick';
+import AccountPane from './features/accounts/AccountPane/AccountPane.jsx';
+import EmptySlot from './layout/EmptySlot/EmptySlot.jsx';
+import TopBar from './layout/TopBar/TopBar.jsx';
+import useAccounts from './features/accounts/useAccounts';
+import useNomesPokemon from './features/vale/useNomesPokemon';
 import { MAX_ACCOUNTS } from './config';
 import './App.css';
 
-const ValePanel = lazy(() => import('./components/ValePane/ValePanel.jsx'));
+const ValePanel = lazy(() => import('./features/vale/ValePanel.jsx')); // não está sendo usado por enquanto
 // Painéis só são carregados quando abertos (menos JS na abertura do app)
-const SniperPanel = lazy(() => import('./components/SniperPanel/SniperPanel.jsx'));
-const TwitchPanel = lazy(() => import('./components/TwitchPanel/TwitchPanel.jsx'));
-const KickPanel = lazy(() => import('./components/KickPanel/KickPanel.jsx'));
-const HuntSim = lazy(() => import('./components/HuntSim/HuntSim.jsx'));
+const SniperPanel = lazy(() => import('./features/sniper/SniperPanel/SniperPanel.jsx'));
+const TwitchPanel = lazy(() => import('./features/stream/panels/TwitchPanel/TwitchPanel.jsx'));
+const KickPanel = lazy(() => import('./features/stream/panels/KickPanel/KickPanel.jsx'));
+const HuntSim = lazy(() => import('./features/hunt/HuntSim/HuntSim.jsx'));
 
 export default function App() {
   const { accounts, focusedSlot, layout, addAccount, removeAccount, updateAccount, setFocus, setLayout } = useAccounts();

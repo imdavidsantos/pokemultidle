@@ -26,3 +26,10 @@ coverage/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# miners (mods/)
+mods/**/venv/
+mods/**/.venv/
+mods/**/__pycache__/
+mods/**/*.pyc
+mods/**/logs/
