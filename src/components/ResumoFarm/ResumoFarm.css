@@ -1,0 +1,54 @@
+/* Estilos do ResumoFarm (lista "Farmando"). A cor de destaque vem da prop `cor` via --rf-cor. */
+.rf { font-size: 12px; }
+.rf > summary {
+  display: flex; align-items: center; gap: 8px; cursor: pointer; list-style: none;
+  padding: 5px 6px; border-radius: 6px; user-select: none;
+}
+.rf > summary::-webkit-details-marker { display: none; }
+.rf > summary:hover { background: rgba(255,255,255,0.05); }
+.rf > summary:focus-visible { outline: 2px solid var(--rf-cor); outline-offset: 1px; }
+
+.rf__chev { width: 10px; text-align: center; opacity: 0.55; transition: transform 0.15s; }
+.rf[open] .rf__chev { transform: rotate(90deg); }
+.rf__titulo { font-weight: 600; }
+.rf__pill {
+  display: inline-flex; align-items: center; gap: 5px; padding: 0 8px; line-height: 18px;
+  border-radius: 999px; font-variant-numeric: tabular-nums;
+  background: rgba(255,255,255,0.08);
+}
+.rf__pill.is-on { background: color-mix(in srgb, var(--rf-cor) 16%, transparent); color: var(--rf-cor); }
+.rf__total { margin-left: auto; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.rf__corpo { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; }
+.rf__cab, .rf__linha {
+  display: grid; grid-template-columns: 14px minmax(0, 1fr) 52px 68px 46px;
+  align-items: center; gap: 8px; padding: 0 6px;
+}
+.rf__cab { font-size: 11px; opacity: 0.5; padding-bottom: 3px; }
+.rf__linha { min-height: 26px; border-radius: 6px; }
+.rf__linha.is-on { background: color-mix(in srgb, var(--rf-cor) 10%, transparent); }
+.rf__linha.is-off { opacity: 0.55; }
+.rf__sep { height: 1px; margin: 4px 6px; background: rgba(255,255,255,0.1); }
+
+.rf__dot {
+  width: 8px; height: 8px; border-radius: 50%; justify-self: center;
+  border: 1.5px solid currentColor; box-sizing: border-box; opacity: 0.7;
+}
+.is-on .rf__dot {
+  opacity: 1; background: var(--rf-cor); border-color: var(--rf-cor);
+  animation: rf-pulso 2s ease-out infinite;
+}
+@keyframes rf-pulso {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--rf-cor) 55%, transparent); }
+  70%, 100% { box-shadow: 0 0 0 6px transparent; }
+}
+@media (prefers-reduced-motion: reduce) { .is-on .rf__dot { animation: none; } }
+
+.rf__nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.is-on .rf__nome { font-weight: 600; }
+.rf__num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.is-on .rf__ganho { color: var(--rf-cor); font-weight: 600; }
+.rf__saldo { opacity: 0.85; }
+.rf__quando { opacity: 0.6; }
+
+.rf__vazio { display: block; margin-top: 6px; padding: 0 6px; opacity: 0.75; }

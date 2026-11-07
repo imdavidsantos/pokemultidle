@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   checarTwitch, iniciarTodasTwitch, iniciarPonteTwitch, iniciarTwitch, instalarTwitch,
   pararTodasTwitch, pararTwitch, salvarTwitch, twitchDisponivel,
@@ -6,7 +6,7 @@ import {
   definirAutoIniciar, useTwitchAutoIniciar,
   prioridadeDaConta, alternarStreamerTwitch, definirTodosTwitch, alternarPrioridadeTwitch, moverPrioridadeTwitch, useTwitchSaldos
 } from '../../utils/twitch/twitchStore';
-import ResumoFarm from '../../utils/ResumoFarm/ResumoFarm';
+import ResumoFarm from '../ResumoFarm/ResumoFarm';
 import '../SniperPanel/SniperPanel.css';
 
 const ROXO = { borderColor: '#9146FF', color: '#9146FF', background: 'rgba(145, 70, 255, 0.12)' };
@@ -110,6 +110,7 @@ function Conta({ slot, nome }) {
   const saldos = useTwitchSaldos(slot);
   const cfg = useTwitchConfig(slot);
   const est = useTwitchEstado(slot);
+  const [verToken, setVerToken] = useState(false);
   const ativo = est.estado === 'rodando' || est.estado === 'iniciando' || est.estado === 'login';
   const mudar = (patch) => salvarTwitch(slot, patch);
 
@@ -152,6 +153,29 @@ function Conta({ slot, nome }) {
           </select>
         </label>
       </div>
+
+      <label style={CAMPO}>
+        Token da Twitch (opcional)
+        <div style={{ display: 'flex', gap: 6 }}>
+          <input
+            className="sniper__input"
+            style={INPUT}
+            type={verToken ? 'text' : 'password'}
+            autoComplete="off"
+            spellCheck={false}
+            value={cfg.token || ''}
+            placeholder="cookie auth-token do twitch.tv"
+            onChange={(e) => mudar({ token: e.target.value.trim() })}
+          />
+          <button type="button" className="sniper__btn" onClick={() => setVerToken((v) => !v)}>
+            {verToken ? 'Ocultar' : 'Mostrar'}
+          </button>
+        </div>
+        <small style={{ opacity: 0.7 }}>
+          Não precisa preencher. Serve só para ver os pontos e resgatar recompensas pelo app, mesmo com o miner parado (o miner não usa este token).
+          Para pegar: twitch.tv logado → F12 → Application → Cookies → twitch.tv → copie o valor de <i>auth-token</i>. Fica salvo só neste computador.
+        </small>
+      </label>
 
       <Streamers slot={slot} cfg={cfg} ativo={ativo} />
 

@@ -6,8 +6,8 @@ import {
   definirAutoIniciar, useKickAutoIniciar,
   prioridadeDaConta, alternarStreamerKick, definirTodosKick, alternarPrioridadeKick, moverPrioridadeKick, useKickSaldos
 } from '../../utils/kick/kickStore';
-import ResumoFarm from '../../utils/ResumoFarm/ResumoFarm';
 import '../SniperPanel/SniperPanel.css';
+import ResumoFarm from '../ResumoFarm/ResumoFarm';
 
 const VERDE = { borderColor: '#53fc18', color: '#53fc18', background: 'rgba(83, 252, 24, 0.12)' };
 const AVISO = '#f5b800';
@@ -168,7 +168,7 @@ function Conta({ slot, nome }) {
       <Streamers slot={slot} cfg={cfg} ativo={ativo} />
 
       {est.mensagem && <div style={{ fontSize: 12, color: COR_ESTADO[est.estado] || AVISO }}>{est.mensagem}</div>}
-      {est.linhas.length > 0 && (<ResumoFarm saldos={saldos} cor="#53fc18" />)}
+      {est.linhas.length > 0 && (<ResumoFarm saldos={saldos} cor="#53fc18" ativos={est.ativos || []} />)}
       {est.linhas.length > 0 && (
         <details>
           <summary style={{ fontSize: 12, cursor: 'pointer' }}>Registro ({est.linhas.length})</summary>

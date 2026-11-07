@@ -13,6 +13,7 @@ const RE_SLUG = /^[A-Za-z0-9_]{1,25}$/;   // login da Twitch
 
 export const configPadrao = () => ({
   username: '',          // usuário da Twitch desta conta
+  token: '',             // OPCIONAL: cookie auth-token do twitch.tv, só para ver pontos/resgatar recompensas pelo app (o miner não usa)
   prioridade: [],        // logins de canais parceiros, em ordem de prioridade (o de cima é assistido primeiro)
   desativados: [],       // logins de parceiros que o usuário desmarcou (parceiro novo entra ativado por padrão)
   seguidores: false,     // também assistir canais que a conta segue
@@ -85,7 +86,14 @@ const persistirSaldos = () => {   // agrupa as gravações: chegam várias por m
 };
 function guardarSaldo(slot, canal, dados) {
   const s = String(slot);
-  const atual = { ...(saldos[s] ?? {}), [canal]: dados };
+  // tGanho = quando o saldo SUBIU pela última vez (o resumo "Farmando" usa isso; `t` também muda a cada consulta).
+  // Saldo abreviado do log (1.08k) não serve para comparar: só conta como alta o ganho informado ou a diferença entre saldos exatos.
+  const antes = saldos[s]?.[canal];
+  const exato = antes && !antes.aprox && !dados.aprox;
+  const subiu = antes
+    ? (exato && Number(dados.pontos) > Number(antes.pontos)) || (dados.ganho || 0) > (antes.ganho || 0)
+    : (dados.ganho || 0) > 0;
+  const atual = { ...(saldos[s] ?? {}), [canal]: { ...dados, tGanho: subiu ? (dados.t || Date.now()) : antes?.tGanho } };
   const nomes = Object.keys(atual);
   if (nomes.length > MAX_CANAIS) {   // mantém só os vistos mais recentemente
     nomes.sort((a, b) => (atual[b].t || 0) - (atual[a].t || 0)).slice(MAX_CANAIS).forEach((n) => { delete atual[n]; });
@@ -357,4 +365,108 @@ export async function iniciarAutomaticoTwitch(slots, intervaloMs = 0) {
   if (!chk?.ok) return { ok: false, mensagem: chk?.mensagem || 'Miner não está pronto.' };
   await iniciarTodasTwitch(retomar, intervaloMs);
   return { ok: true };
+}
+
+// ---------- saldo de pontos pela API (token opcional) ----------
+// O processo principal consulta a Twitch com o token (window.twitch.pontos) e o resultado entra no mesmo `saldos`
+// que o painel já lê. Funciona com o miner parado. `ganho` aqui = soma das altas vistas entre uma consulta e outra.
+const SEM_STATUS_PONTOS = { carregando: false, erro: '', t: 0 };
+let statusPontos = {};   // slot -> { carregando, erro, t (última consulta ok) }
+const setStatusPontos = (slot, patch) => {
+  const k = String(slot);
+  statusPontos = { ...statusPontos, [k]: { ...(statusPontos[k] ?? SEM_STATUS_PONTOS), ...patch } };
+  avisar();
+};
+export const useTwitchPontosStatus = (slot) => useSyncExternalStore(assinar, () => statusPontos[String(slot)] ?? SEM_STATUS_PONTOS);
+
+const buscandoPontos = new Set();
+export async function buscarPontosTwitch(slot) {
+  const k = String(slot);
+  const t = ponte();
+  if (!t?.pontos) return { ok: false, mensagem: 'Disponível só no app desktop.' };
+  if (buscandoPontos.has(k)) return { ok: true };
+  const cfg = cfgDe(k);
+  if (!String(cfg.token || '').trim()) return { ok: false, mensagem: 'Sem token.' };   // token é opcional: sem ele vale só o log do miner
+  const slugs = slugsParceiros();
+  if (!slugs.length) return { ok: false, mensagem: 'A lista de parceiros ainda não chegou do jogo.' };
+
+  buscandoPontos.add(k);
+  setStatusPontos(k, { carregando: true });
+  try {
+    const r = await t.pontos({ token: cfg.token }, slugs);
+    const agora = Date.now();
+    for (const [canal, v] of Object.entries(r?.saldos || {})) {
+      const antes = saldos[k]?.[canal];
+      const subiu = antes && !antes.aprox && v.pontos > antes.pontos ? v.pontos - antes.pontos : 0;
+      guardarSaldo(k, canal, {
+        pontos: v.pontos, texto: String(v.pontos), aprox: false,
+        ganho: (antes?.ganho || 0) + subiu, online: antes?.online, t: agora,
+      });
+    }
+    const falhas = Object.keys(r?.erros || {}).length;
+    const erro = r?.ok ? (falhas ? `${falhas} canal(is) sem resposta.` : '') : (r?.mensagem || 'Falha ao consultar a Twitch.');
+    setStatusPontos(k, { carregando: false, erro, ...(r?.ok ? { t: agora } : {}) });
+    return r;
+  } catch (e) {
+    setStatusPontos(k, { carregando: false, erro: e?.message || 'Falha ao consultar a Twitch.' });
+    return { ok: false, mensagem: e?.message };
+  } finally { buscandoPontos.delete(k); }
+}
+
+// ---------- recompensas de um streamer (pedidas com o token) ----------
+const SEM_REC = { carregando: false, erro: '', lista: [], canalId: '', t: 0 };
+let recompensas = {};   // "slot:slug" -> { carregando, erro, lista, canalId, t }
+const setRec = (chave, patch) => {
+  recompensas = { ...recompensas, [chave]: { ...(recompensas[chave] ?? SEM_REC), ...patch } };
+  avisar();
+};
+export const useTwitchRecompensas = (slot, slug) => useSyncExternalStore(assinar, () => recompensas[`${slot}:${slug}`] ?? SEM_REC);
+
+export async function buscarRecompensasTwitch(slot, slug) {
+  const chave = `${slot}:${slug}`;
+  const t = ponte();
+  if (!t?.recompensas) return { ok: false, mensagem: 'Disponível só no app desktop.' };
+  if (!String(cfgDe(slot).token || '').trim()) {
+    setRec(chave, { carregando: false, erro: 'Cole o token da Twitch no painel Twitch (campo opcional) para ver e resgatar recompensas.' });
+    return { ok: false, mensagem: 'Sem token.' };
+  }
+  if (recompensas[chave]?.carregando) return { ok: true };
+  setRec(chave, { carregando: true, erro: '' });
+  try {
+    const r = await t.recompensas({ token: cfgDe(slot).token }, slug);
+    setRec(chave, r?.ok
+      ? { carregando: false, erro: '', lista: r.lista || [], canalId: r.canalId || '', t: Date.now() }
+      : { carregando: false, erro: r?.mensagem || 'Falha ao buscar as recompensas.' });
+    return r;
+  } catch (e) {
+    setRec(chave, { carregando: false, erro: e?.message || 'Falha ao buscar as recompensas.' });
+    return { ok: false, mensagem: e?.message };
+  }
+}
+
+// Resgate em andamento / último resultado, por conta (só um por vez, para não gastar pontos em dobro).
+const SEM_RESGATE = { id: '', msg: '', ok: true };
+let resgate = {};   // slot -> { id (em andamento), msg, ok }
+const setResgate = (slot, patch) => { resgate = { ...resgate, [String(slot)]: { ...(resgate[String(slot)] ?? SEM_RESGATE), ...patch } }; avisar(); };
+export const useTwitchResgate = (slot) => useSyncExternalStore(assinar, () => resgate[String(slot)] ?? SEM_RESGATE);
+
+export async function resgatarTwitch(slot, slug, rec, texto = '') {
+  const t = ponte();
+  if (!t?.resgatar) return { ok: false, mensagem: 'Disponível só no app desktop.' };
+  if ((resgate[String(slot)] ?? SEM_RESGATE).id) return { ok: false, mensagem: 'Já há um resgate em andamento.' };
+  const canalId = recompensas[`${slot}:${slug}`]?.canalId;
+  if (!canalId) {
+    setResgate(slot, { id: '', msg: 'Atualize a lista de recompensas antes de resgatar.', ok: false });
+    return { ok: false, mensagem: 'Sem id do canal.' };
+  }
+  setResgate(slot, { id: rec.id, msg: '', ok: true });
+  try {
+    const r = await t.resgatar({ token: cfgDe(slot).token }, slug, rec.id, texto, canalId, rec.custo, { titulo: rec.tituloOriginal, prompt: rec.promptOriginal });
+    setResgate(slot, { id: '', msg: r?.mensagem || (r?.ok ? 'Resgatado! Chegará no jogo em 1 minuto!' : 'Falha ao resgatar.'), ok: !!r?.ok });
+    if (r?.ok) { buscarPontosTwitch(slot); buscarRecompensasTwitch(slot, slug); }   // atualiza saldo e limites
+    return r;
+  } catch (e) {
+    setResgate(slot, { id: '', msg: e?.message || 'Falha ao resgatar.', ok: false });
+    return { ok: false, mensagem: e?.message };
+  }
 }

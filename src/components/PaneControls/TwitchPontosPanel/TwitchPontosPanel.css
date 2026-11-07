@@ -69,3 +69,23 @@
   cursor: pointer;
 }
 .twpontos__limpar:hover { color: var(--text); border-color: var(--accent); }
+
+.twpontos__msg--erro { color: #f85149; }
+.twpontos__acoes { display: flex; gap: 6px; }
+.twpontos__limpar:disabled { opacity: 0.5; cursor: default; }
+
+/* nome do streamer = botão que abre a aba de recompensas */
+.twpontos__canalbtn {
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+  cursor: pointer;
+}
+.twpontos__canalbtn:hover { color: var(--accent); text-decoration: underline; }

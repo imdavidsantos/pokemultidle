@@ -3,6 +3,8 @@
 const fs = require('fs');
 const path = require('path');
 const { spawn, spawnSync } = require('child_process');
+const { net } = require('electron');
+const crypto = require('crypto');
 
 // Roda um processo sem travar o processo principal do Electron (substitui o spawnSync).
 function rodar(cmd, args, opts = {}) {
@@ -101,6 +103,202 @@ function lerSaldo(linha) {
   if (/^\s*is (?:Online!|streaming )/.test(resto)) online = true;
   else if (/^\s*is Offline!/.test(resto)) online = false;
   return { canal: m[1].toLowerCase(), pontos: p.pontos, texto: m[2], aprox: p.aprox, ganho, online };
+}
+
+// ---------- pontos e recompensas pela API da Twitch (token OPCIONAL do usuário; o miner não usa) ----------
+// A Twitch não tem endereços REST para isso: o site usa o GraphQL (gql.twitch.tv) com "persisted queries", cada uma
+// identificada por um hash que a Twitch troca de tempos em tempos. Se parar de funcionar, confira no DevTools
+// (twitch.tv logado > Network > filtrar "gql") e copie o sha256Hash de dentro de extensions.persistedQuery:
+//   HASH_CONTEXTO = pedido "ChannelPointsContext" (aparece ao abrir o baú de pontos / lista de recompensas)
+//   HASH_RESGATE  = pedido "RedeemCustomReward" (aparece ao resgatar uma recompensa na mão). Vazio = resgate desligado.
+const URL_GQL = 'https://gql.twitch.tv/gql';
+const CLIENT_ID_WEB = 'kimne78kx3ncx6brgo4mv6wki5h1ko';   // o do site: o cookie auth-token só vale com ele
+const HASH_CONTEXTO = '1530a003a7d374b0380b79db0be0534f30ff46e61cffa2bc0e2468a909fbc024';
+const HASH_RESGATE = 'd56249a7adb4978898ea3412e196688d4ac3cea1c0c2dfd65561d229ea5dcc42';
+const LOTE_PONTOS = 8;           // canais por pedido (o GraphQL aceita vários numa lista só)
+const PONTOS_ESPERA_MS = 200;
+
+const MSG_TOKEN = 'Token da Twitch inválido ou expirado (use o cookie auth-token do twitch.tv).';
+const MSG_HASH = 'A Twitch trocou o código da consulta (hash). Copie o novo do DevTools (veja o comentário em twitchPresence.js).';
+const RE_TOKEN_TW = /^[A-Za-z0-9]{20,64}$/;
+const RE_ID_REC = /^[A-Za-z0-9-]{8,64}$/;
+const RE_ID_CANAL = /^[0-9]{1,20}$/;
+
+const limparTokenTw = (t) => String(t || '').trim().replace(/^oauth\s*:?\s*/i, '');
+const textoCurto = (v, n) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, n);
+
+function tokenValido(cfgBruta) {
+  const token = limparTokenTw(cfgBruta?.token);
+  if (!token) return { erro: 'Cole o token da Twitch (campo opcional no painel Twitch).' };
+  if (!RE_TOKEN_TW.test(token)) return { erro: 'Token da Twitch com formato inválido (use só o valor do cookie auth-token).' };
+  return { token };
+}
+
+async function chamarGql(token, corpo) {
+  const ctrl = new AbortController();
+  const to = setTimeout(() => ctrl.abort(), 15000);
+  try {
+    const r = await net.fetch(URL_GQL, {
+      method: 'POST',
+      headers: { Authorization: `OAuth ${token}`, 'Client-Id': CLIENT_ID_WEB, 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(corpo),
+      signal: ctrl.signal,
+    });
+    const texto = await r.text();
+    let json = null;
+    try { json = JSON.parse(texto); } catch { /* não é JSON */ }
+    return { status: r.status, json, texto };
+  } catch (e) {
+    return { status: 0, json: null, texto: '', erro: e?.message || 'Falha de rede.' };
+  } finally { clearTimeout(to); }
+}
+
+// Erro da resposta inteira (rede, token recusado, limite). '' = a resposta chegou bem.
+function erroDaResposta(r) {
+  if (r.status === 0) return r.erro;
+  const j = r.json;
+  const primeiro = Array.isArray(j) ? j[0] : j;
+  const msg = String(primeiro?.message ?? primeiro?.error ?? '');
+  if (r.status === 401 || /unauthorized|invalid.*token/i.test(msg)) return MSG_TOKEN;
+  if (r.status === 429) return 'A Twitch limitou os pedidos (429). Tente de novo em instantes.';
+  if (!(r.status >= 200 && r.status < 300)) return textoCurto(msg, 120) || `HTTP ${r.status}`;
+  return '';
+}
+
+const operacaoContexto = (slug) => ({
+  operationName: 'ChannelPointsContext',
+  variables: { channelLogin: slug },
+  extensions: { persistedQuery: { version: 1, sha256Hash: HASH_CONTEXTO } },
+});
+
+// Lê um ChannelPointsContext: saldo, id do canal e (se vierem) as recompensas.
+// Devolve { fatal } | { erro } | { pontos, canalId, rewards }.
+function lerContexto(el) {
+  const msg = textoCurto(el?.errors?.[0]?.message ?? el?.message ?? el?.error ?? '', 120);
+  if (/PersistedQueryNotFound/i.test(msg)) return { fatal: MSG_HASH };
+  if (/unauthorized|invalid.*token/i.test(msg)) return { fatal: MSG_TOKEN };
+  const comunidade = el?.data?.community;
+  if (!comunidade) return { erro: msg || 'Canal não encontrado.' };
+  const canal = comunidade.channel;
+  if (!canal?.self) return { fatal: MSG_TOKEN };   // sem usuário logado = token não foi aceito
+  const n = Number(canal.self.communityPoints?.balance);
+  const customs = canal.communityPointsSettings?.customRewards;
+  return {
+    pontos: Number.isFinite(n) ? Math.trunc(n) : null,
+    canalId: String(canal.id ?? comunidade.id ?? ''),
+    rewards: Array.isArray(customs) ? customs : null,
+  };
+}
+
+function normalizarRecompensas(lista) {
+  return lista.map((r) => {
+    const cor = String(r?.backgroundColor ?? '');
+    return {
+      id: String(r?.id ?? ''),
+      titulo: textoCurto(r?.title, 80),
+      descricao: textoCurto(r?.prompt, 200),
+      tituloOriginal: String(r?.title ?? ''),
+      promptOriginal: r?.prompt == null ? null : String(r.prompt),
+      custo: Math.max(0, Math.trunc(Number(r?.cost)) || 0),
+      ativo: r?.isEnabled !== false && !r?.isPaused && r?.isInStock !== false,
+      pedeTexto: !!r?.isUserInputRequired,
+      cor: /^#[0-9a-f]{3,8}$/i.test(cor) ? cor : '',
+    };
+  }).filter((r) => RE_ID_REC.test(r.id) && r.titulo);
+}
+
+// cfgBruta = { token }, slugs = logins dos canais. Devolve { ok, mensagem, saldos: { slug: { pontos } }, erros: { slug: texto } }.
+async function buscarPontos(cfgBruta, slugsBrutos) {
+  const v = tokenValido(cfgBruta);
+  if (v.erro) return { ok: false, mensagem: v.erro, saldos: {}, erros: {} };
+  const slugs = [...new Set((Array.isArray(slugsBrutos) ? slugsBrutos : [])
+    .map((s) => String(s).trim().toLowerCase()).filter((s) => RE_USUARIO.test(s)))].slice(0, 100);
+  if (!slugs.length) return { ok: false, mensagem: 'Nenhum canal para consultar.', saldos: {}, erros: {} };
+
+  const saldos = {}; const erros = {};
+  let fatal = '';
+  for (let i = 0; i < slugs.length && !fatal; i += LOTE_PONTOS) {
+    const lote = slugs.slice(i, i + LOTE_PONTOS);
+    const r = await chamarGql(v.token, lote.map(operacaoContexto));
+    fatal = erroDaResposta(r);
+    if (fatal) break;
+    const lista = Array.isArray(r.json) ? r.json : [r.json];
+    lote.forEach((slug, k) => {
+      const c = lerContexto(lista[k]);
+      if (c.fatal) fatal = fatal || c.fatal;
+      else if (c.erro) erros[slug] = c.erro;
+      else if (c.pontos === null) erros[slug] = 'Sem pontos neste canal.';
+      else saldos[slug] = { pontos: c.pontos };
+    });
+    await new Promise((ok) => setTimeout(ok, PONTOS_ESPERA_MS));
+  }
+  const nSaldos = Object.keys(saldos).length;
+  return {
+    ok: !fatal && nSaldos > 0,
+    mensagem: fatal || (nSaldos ? '' : Object.values(erros)[0] || 'Não consegui ler nenhum saldo.'),
+    saldos,
+    erros,
+  };
+}
+
+// Devolve { ok, mensagem, canalId, lista: [{ id, titulo, descricao, custo, ativo, pedeTexto, cor }] }.
+async function buscarRecompensas(cfgBruta, slugBruto) {
+  const v = tokenValido(cfgBruta);
+  if (v.erro) return { ok: false, mensagem: v.erro, lista: [] };
+  const slug = String(slugBruto || '').trim().toLowerCase();
+  if (!RE_USUARIO.test(slug)) return { ok: false, mensagem: 'Streamer inválido.', lista: [] };
+  const r = await chamarGql(v.token, [operacaoContexto(slug)]);
+  const e = erroDaResposta(r);
+  if (e) return { ok: false, mensagem: e, lista: [] };
+  const c = lerContexto(Array.isArray(r.json) ? r.json[0] : r.json);
+  if (c.fatal || c.erro) return { ok: false, mensagem: c.fatal || c.erro, lista: [] };
+  if (!c.rewards) return { ok: false, mensagem: `Resposta sem recompensas (hash desatualizado?): ${textoCurto(r.texto, 100)}`, lista: [] };
+  return { ok: true, mensagem: '', canalId: c.canalId, lista: normalizarRecompensas(c.rewards) };
+}
+
+const MOTIVOS_RESGATE = {
+  NOT_ENOUGH_POINTS: 'Pontos insuficientes.',
+  COOLDOWN: 'A recompensa está em espera (cooldown).',
+  DISABLED: 'A recompensa está desativada.',
+  MAX_PER_STREAM: 'Limite de resgates desta live atingido.',
+  MAX_PER_USER_PER_STREAM: 'Você já atingiu o limite desta recompensa nesta live.',
+  REWARD_NOT_FOUND: 'Recompensa não encontrada (atualize a lista).',
+  CHANNEL_NOT_FOUND: 'Canal não encontrado.',
+};
+
+// Gasta pontos de verdade: só é chamado depois do clique + confirmação do usuário.
+async function resgatarRecompensa(cfgBruta, slugBruto, idBruto, textoBruto, canalIdBruto, custoBruto, extraBruto) {
+  if (!HASH_RESGATE) return { ok: false, mensagem: 'Resgate desligado: falta o hash do RedeemCustomReward em twitchPresence.js (copie do DevTools).' };
+  const v = tokenValido(cfgBruta);
+  if (v.erro) return { ok: false, mensagem: v.erro };
+  const slug = String(slugBruto || '').trim().toLowerCase();
+  const id = String(idBruto || '');
+  const canalId = String(canalIdBruto || '');
+  const custo = Math.trunc(Number(custoBruto));
+  if (!RE_USUARIO.test(slug) || !RE_ID_REC.test(id) || !RE_ID_CANAL.test(canalId) || !Number.isFinite(custo) || custo < 0) {
+    return { ok: false, mensagem: 'Recompensa inválida (atualize a lista e tente de novo).' };
+  }
+  const titulo = String(extraBruto?.titulo ?? '');
+  const prompt = extraBruto?.prompt == null ? null : String(extraBruto.prompt);
+  if (!titulo) return { ok: false, mensagem: 'Recompensa inválida (atualize a lista e tente de novo).' };
+  const texto = textoCurto(textoBruto, 500);
+  const corpo = {
+    operationName: 'RedeemCustomReward',
+    variables: { input: { channelID: canalId, cost: custo, pricingType: 'POINTS', prompt, rewardID: id, textInput: texto || null, title: titulo, transactionID: crypto.randomBytes(16).toString('hex') } },
+    extensions: { persistedQuery: { version: 1, sha256Hash: HASH_RESGATE } },
+  };
+  const r = await chamarGql(v.token, [corpo]);
+  const e = erroDaResposta(r);
+  if (e) return { ok: false, mensagem: e };
+  const el = Array.isArray(r.json) ? r.json[0] : r.json;
+  const msg = textoCurto(el?.errors?.[0]?.message ?? '', 160);
+  if (/PersistedQueryNotFound/i.test(msg)) return { ok: false, mensagem: MSG_HASH };
+  if (/integrity/i.test(msg)) return { ok: false, mensagem: 'A Twitch exigiu verificação de integridade para este resgate; resgate pelo site.' };
+  const d = el?.data?.redeemCommunityPointsCustomReward;
+  const codigo = d?.error?.code;
+  if (codigo) return { ok: false, mensagem: MOTIVOS_RESGATE[codigo] || `Recusado pela Twitch (${codigo}).` };
+  if (!d) return { ok: false, mensagem: msg || `Resposta inesperada: ${textoCurto(r.texto, 120)}` };
+  return { ok: true, mensagem: 'Resgatado! Chegará no jogo em 1 minuto!' };
 }
 
 function criarGerenciador({ app, shell, enviar, pastaExtra }) {
@@ -397,9 +595,12 @@ function setupTwitchPresence({ app, ipcMain, shell, send, pastaExtra }) {
   ipcMain.handle('twitch:instalar', () => g.instalarDependencias());
   ipcMain.handle('twitch:iniciar', (_e, slot, cfg) => g.iniciar(slot, cfg));
   ipcMain.handle('twitch:parar', (_e, slot) => g.parar(slot));
-  ipcMain.handle('twitch:parar-todas', () => { g.pararTodas(); return { ok: true }; });
+  ipcMain.handle('twitch:resgatar', (_e, cfg, slug, id, texto, canalId, custo, extra) => resgatarRecompensa(cfg, slug, id, texto, canalId, custo, extra));
   ipcMain.handle('twitch:status', () => g.status());
+  ipcMain.handle('twitch:pontos', (_e, cfg, slugs) => buscarPontos(cfg, slugs));   // saldos pelo token (opcional)
+  ipcMain.handle('twitch:recompensas', (_e, cfg, slug) => buscarRecompensas(cfg, slug));
+  ipcMain.handle('twitch:resgatar', (_e, cfg, slug, id, texto, canalId, custo, titulo) => resgatarRecompensa(cfg, slug, id, texto, canalId, custo, titulo));
   return g;
 }
 
-module.exports = { setupTwitchPresence, criarGerenciador, acharRaiz, limparLogsAntigos, lerSaldo };
+module.exports = { setupTwitchPresence, criarGerenciador, acharRaiz, limparLogsAntigos, lerSaldo, buscarPontos, buscarRecompensas, resgatarRecompensa };

@@ -19,7 +19,7 @@ export const configPadrao = () => ({
   proxy: '',             // opcional: socks5://usuario:senha@host:porta
 });
 
-const SEM_ESTADO = { estado: 'parado', codigo: null, mensagem: '', linhas: [] };
+const SEM_ESTADO = { estado: 'parado', codigo: null, mensagem: '', linhas: [], ativos: [] };   // ativos = canais assistidos agora (do log do miner)
 
 function carregar() {
   try { return JSON.parse(localStorage.getItem(CHAVE) || '{}'); } catch { return {}; }
@@ -265,7 +265,9 @@ function aoEvento(ev) {
   if (!ev) return;
   if (ev.tipo === 'pip') { pip = [...pip, ev.linha].slice(-MAX_LINHAS); avisar(); return; }
   if (ev.tipo === 'estado') {
-    setEstado(ev.slot, { estado: ev.estado, codigo: ev.codigo ?? null, mensagem: ev.mensagem || '' });
+    setEstado(ev.slot, { estado: ev.estado, codigo: ev.codigo ?? null, mensagem: ev.mensagem || '', ...(ev.estado === 'rodando' ? {} : { ativos: [] }) });
+  } else if (ev.tipo === 'ativos') {
+    setEstado(ev.slot, { ativos: Array.isArray(ev.canais) ? ev.canais : [] });
   } else if (ev.tipo === 'log') {
     const atual = estados[ev.slot] ?? SEM_ESTADO;
     setEstado(ev.slot, { linhas: [...atual.linhas, ev.linha].slice(-MAX_LINHAS) });
@@ -284,7 +286,7 @@ export async function iniciarPonteKick() {
   try {
     const st = await t.status();   // reaproveita o que já estava rodando (ex.: recarregou a tela)
     for (const [slot, s] of Object.entries(st || {})) {
-      setEstado(slot, { estado: s.estado, codigo: s.codigo, linhas: s.linhas || [] });
+      setEstado(slot, { estado: s.estado, codigo: s.codigo, linhas: s.linhas || [], ativos: s.ativos || [] });
       for (const [canal, v] of Object.entries(s.saldos || {})) guardarSaldo(slot, canal, v);
     }
   } catch { /* sem status */ }
@@ -444,7 +446,7 @@ export async function resgatarKick(slot, slug, rec, texto = '') {
   setResgate(slot, { id: rec.id, msg: '', ok: true });
   try {
     const r = await t.resgatar({ token: cfgDe(slot).token }, slug, rec.id, texto);
-    setResgate(slot, { id: '', msg: r?.mensagem || (r?.ok ? 'Resgatado!' : 'Falha ao resgatar.'), ok: !!r?.ok });
+    setResgate(slot, { id: '', msg: r?.mensagem || (r?.ok ? 'Resgatado! Chegará no jogo em 1 minuto!' : 'Falha ao resgatar.'), ok: !!r?.ok });
     if (r?.ok) { buscarPontosKick(slot); buscarRecompensasKick(slot, slug); }   // atualiza saldo e limites
     return r;
   } catch (e) {

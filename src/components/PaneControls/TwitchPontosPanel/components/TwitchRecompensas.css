@@ -1,0 +1,55 @@
+/* Aba de recompensas: renderizada dentro do .twpontos (mesmo encaixe do painel de pontos). */
+.twrec__bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; font-size: 13px; }
+.twrec__voltar, .twrec__close { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 13px; }
+.twrec__voltar:hover, .twrec__close:hover { color: var(--text); }
+
+.twrec__titulo { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.twrec__nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 700; color: var(--text); }
+.twrec__saldo { font-size: 12px; color: #1de02d; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.twrec__msg { margin: 6px 2px; font-size: 12px; color: var(--muted); }
+.twrec__msg.is-ok { color: #1de02d; }
+.twrec__msg.is-erro { color: #f85149; }
+
+.twrec__lista { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.twrec__item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 13px;
+}
+.twrec__item.is-off { opacity: 0.5; }
+.twrec__info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.twrec__rotulo { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.twrec__desc { font-size: 11px; color: var(--muted); }
+.twrec__input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 3px 6px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 12px;
+}
+.twrec__custo { color: var(--text); font-variant-numeric: tabular-nums; text-align: right; }
+
+.twrec__btn {
+  padding: 3px 8px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: none;
+  color: var(--text);
+  font-size: 11px;
+  cursor: pointer;
+}
+.twrec__btn:hover:not(:disabled) { border-color: var(--accent); }
+.twrec__btn:disabled { opacity: 0.45; cursor: default; }
+
+.twrec__rodape { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+.twrec__rodape small { font-size: 11px; color: var(--muted); }

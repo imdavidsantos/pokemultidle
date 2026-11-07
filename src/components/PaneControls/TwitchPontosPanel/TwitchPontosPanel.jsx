@@ -1,9 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import {
-  limparSaldosTwitch, useTwitchConfig, useTwitchEstado, useTwitchParceiros, useTwitchSaldos,
+  buscarPontosTwitch, limparSaldosTwitch, useTwitchConfig, useTwitchEstado, useTwitchParceiros, useTwitchPontosStatus, useTwitchSaldos,
 } from '../../../utils/twitch/twitchStore';
-import { ordenarCanais, tempoRelativo, textoPontos } from '../../../utils/twitch/formatos';
+import TwitchRecompensas from './components/TwitchRecompensas';
 import './TwitchPontosPanel.css';
+
+const INTERVALO_MS = 60000;   // com token: reconsulta os saldos enquanto o painel está aberto
+
+// Formatação local (não depende mais do utils/twitch/formatos.js).
+// "≈ 1.08k" quando o miner abreviou o saldo; senão o número exato em pt-BR.
+const textoPontos = (d) => (d.aprox ? `≈ ${d.texto}` : Number(d.pontos).toLocaleString('pt-BR'));
+const ordenarCanais = (saldos) => Object.entries(saldos).sort((a, b) => (b[1].pontos || 0) - (a[1].pontos || 0));   // maior saldo primeiro
+function tempoRelativo(t, agora) {
+  const s = Math.max(0, Math.floor((agora - t) / 1000));
+  if (s < 60) return 'agora';
+  if (s < 3600) return `há ${Math.floor(s / 60)} min`;
+  if (s < 86400) return `há ${Math.floor(s / 3600)} h`;
+  return `há ${Math.floor(s / 86400)} d`;
+}
 
 const ROTULO_ESTADO = {
   parado: 'Miner parado', iniciando: 'Miner iniciando…', login: 'Aguardando login', rodando: 'Miner rodando', erro: 'Miner com erro',
@@ -21,13 +35,27 @@ function useAgora(ms = 30000) {
 
 // Os streamers vem da lista de canais parceiros.
 // Os saldos vêm do log do miner (twitchStore): atualizam a cada ganho (~5 min) ou quando o canal fica online.
+// Se a conta tiver o token (opcional, painel Twitch), os saldos também são consultados na Twitch ao abrir e a cada 60 s,
+// mesmo com o miner parado, e o nome do streamer abre a aba de recompensas para resgatar.
 // Parceiro sem saldo lido ainda aparece com "—"; saldos de canais que não são mais parceiros não são mostrados.
 export default function TwitchPontosPanel({ slot, nome, onClose }) {
   const saldos = useTwitchSaldos(slot);
   const est = useTwitchEstado(slot);
   const cfg = useTwitchConfig(slot);
   const parc = useTwitchParceiros();
+  const st = useTwitchPontosStatus(slot);
   const agora = useAgora();
+  const [aberto, setAberto] = useState(null);   // login do streamer cuja aba de recompensas está aberta
+
+  const token = String(cfg.token || '').trim();
+  const qtdParceiros = parc.lista.length;
+
+  useEffect(() => {
+    if (!token || !qtdParceiros) return undefined;
+    buscarPontosTwitch(slot);
+    const t = setInterval(() => buscarPontosTwitch(slot), INTERVALO_MS);
+    return () => clearInterval(t);
+  }, [slot, token, qtdParceiros]);
 
   const nomeDe = Object.fromEntries(parc.lista.map((p) => [p.slug, p.nome]));
   const off = new Set(cfg.desativados || []);
@@ -43,9 +71,26 @@ export default function TwitchPontosPanel({ slot, nome, onClose }) {
 
   let vazio = 'Nenhum saldo lido ainda.';
   if (!parc.lista.length) vazio = 'Ainda não recebi a lista de parceiros (abra uma conta do jogo e espere carregar).';
-  else if (semUsuario) vazio = 'Informe o usuário da Twitch desta conta no painel Twitch e ligue o miner.';
-  else if (est.estado === 'parado') vazio = 'O miner desta conta está parado. Os saldos aparecem quando ele rodar.';
+  else if (token && st.carregando) vazio = 'Consultando os saldos na Twitch…';
+  else if (token && st.erro) vazio = st.erro;
+  else if (!token && semUsuario) vazio = 'Informe o usuário da Twitch desta conta no painel Twitch e ligue o miner (ou cole o token, opcional, para ver os pontos sem o miner).';
+  else if (!token && est.estado === 'parado') vazio = 'O miner desta conta está parado. Os saldos aparecem quando ele rodar (ou cole o token no painel Twitch).';
   else if (rodando || est.estado === 'iniciando') vazio = 'Aguardando o miner escrever o primeiro saldo…';
+
+  if (aberto) {
+    return (
+      <div className="twpontos" role="dialog" aria-label="Recompensas da Twitch">
+        <TwitchRecompensas
+          slot={slot}
+          slug={aberto}
+          nome={nomeDe[aberto] || aberto}
+          pontos={saldos[aberto]?.pontos}
+          onVoltar={() => setAberto(null)}
+          onClose={onClose}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="twpontos" role="dialog" aria-label="Pontos da Twitch">
@@ -56,10 +101,12 @@ export default function TwitchPontosPanel({ slot, nome, onClose }) {
 
       <div className="twpontos__sub">
         {cfg.username ? `Conta ${cfg.username} · ` : ''}
+        {token && (st.carregando ? 'Consultando… · ' : st.t ? `Consultado ${tempoRelativo(st.t, agora)} · ` : '')}
         <span className={`twpontos__estado twpontos__estado--${est.estado}`}>{ROTULO_ESTADO[est.estado] || est.estado}</span>
       </div>
 
       {comSaldo.length === 0 && <p className="twpontos__msg">{vazio}</p>}
+      {comSaldo.length > 0 && token && st.erro && <p className="twpontos__msg twpontos__msg--erro">{st.erro}</p>}
 
       {canais.length > 0 && (
         <ul className="twpontos__lista">
@@ -74,10 +121,17 @@ export default function TwitchPontosPanel({ slot, nome, onClose }) {
                 {rodando && d && d.online !== undefined && (
                   <i className={`twpontos__dot ${d.online ? 'is-on' : ''}`} title={d.online ? 'Ao vivo' : 'Offline'} />
                 )}
-                {nomeDe[canal.toLowerCase()] || canal}
+                <button
+                  type="button"
+                  className="twpontos__canalbtn"
+                  title="Ver recompensas para resgatar"
+                  onClick={() => setAberto(canal.toLowerCase())}
+                >
+                  {nomeDe[canal.toLowerCase()] || canal}
+                </button>
               </span>
               <b className="twpontos__pontos">{d ? textoPontos(d) : '—'}</b>
-              <span className={`twpontos__ganho ${d && d.ganho > 0 ? 'is-pos' : ''}`} title="Ganho nesta sessão do miner">
+              <span className={`twpontos__ganho ${d && d.ganho > 0 ? 'is-pos' : ''}`} title="Ganho visto nesta sessão (Limpar zera)">
                 {d && d.ganho > 0 ? `+${d.ganho.toLocaleString('pt-BR')}` : '—'}
               </span>
               <span className="twpontos__visto">{d ? tempoRelativo(d.t, agora) : ''}</span>
@@ -86,13 +140,18 @@ export default function TwitchPontosPanel({ slot, nome, onClose }) {
         </ul>
       )}
 
-      {comSaldo.length > 0 && (
+      {(comSaldo.length > 0 || token) && (
         <div className="twpontos__rodape">
           <small>
-            {rodando ? 'Atualiza a cada ganho de pontos.' : 'Último saldo lido (o miner não está rodando).'}
+            {token
+              ? 'Saldo consultado na Twitch com o token, a cada 60 s.'
+              : (rodando ? 'Atualiza a cada ganho de pontos.' : 'Último saldo lido (o miner não está rodando).')}
             {comSaldo.some(([, d]) => d.aprox) ? ' ≈ = valor abreviado pelo miner.' : ''}
           </small>
-          <button className="twpontos__limpar" onClick={() => limparSaldosTwitch(slot)}>Limpar</button>
+          <div className="twpontos__acoes">
+            {token && <button className="twpontos__limpar" disabled={st.carregando} onClick={() => buscarPontosTwitch(slot)}>Atualizar</button>}
+            {comSaldo.length > 0 && <button className="twpontos__limpar" onClick={() => limparSaldosTwitch(slot)}>Limpar</button>}
+          </div>
         </div>
       )}
     </div>

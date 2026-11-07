@@ -17,6 +17,9 @@ contextBridge.exposeInMainWorld('twitch', {
   parar: (slot) => ipcRenderer.invoke('twitch:parar', slot),
   pararTodas: () => ipcRenderer.invoke('twitch:parar-todas'),
   status: () => ipcRenderer.invoke('twitch:status'),
+  pontos: (cfg, slugs) => ipcRenderer.invoke('twitch:pontos', cfg, slugs),
+  recompensas: (cfg, slug) => ipcRenderer.invoke('twitch:recompensas', cfg, slug),
+  resgatar: (cfg, slug, id, texto, canalId, custo, titulo) => ipcRenderer.invoke('twitch:resgatar', cfg, slug, id, texto, canalId, custo, titulo),
   aoMudar: (cb) => {
     const f = (_e, dados) => cb(dados);
     ipcRenderer.on('twitch:evento', f);

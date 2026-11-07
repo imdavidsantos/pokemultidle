@@ -97,6 +97,9 @@ function aplicarPatchSaldo(raiz) {
 const RE_SALDO = /(?:💰|📊)\s*([A-Za-z0-9_-]{1,50}):\s*(?:\+(\d+)\s*)?\((?:Total|Всего):\s*(\d+)\)/u;
 const RE_ONLINE = /(?:🟢|🔴)\s*([A-Za-z0-9_-]{1,50})\s+(ONLINE|OFFLINE|ОНЛАЙН|ОФФЛАЙН)/u;
 
+// Linha do rebalanceamento: "... [conta-1] Ativos: ['axt', 'clovaobengalalol'] (2/2)" = canais assistidos agora.
+const RE_ATIVOS = /(?:Ativos|Активные|Active):\s*\[([^\]]*)\]/u;
+
 // Devolve { canal, pontos, texto, aprox, ganho } | { canal, online } | null.
 function lerLinha(linha) {
   const s = RE_SALDO.exec(linha);
@@ -322,7 +325,7 @@ async function resgatarRecompensa(cfgBruta, slugBruto, idBruto, textoBruto) {
       if (det) msg = `${msg} [${textoCurto(det, 200)}]`.trim();
     }
   } catch { /* sem JSON */ }
-  if (r.status >= 200 && r.status < 300) return { ok: true, mensagem: msg || 'Resgatado!' };
+  if (r.status >= 200 && r.status < 300) return { ok: true, mensagem: 'Resgatado! Chegará no jogo em 1 minuto!' };
   return { ok: false, mensagem: `${msg || msgHttp(r)} (HTTP ${r.status})` };
 }
 
@@ -488,6 +491,12 @@ function criarGerenciador({ app, shell, enviar, pastaExtra }) {
     reg.linhas.push(linha);
     if (reg.linhas.length > MAX_LINHAS) reg.linhas.shift();
 
+    const at = RE_ATIVOS.exec(linha);
+    if (at) {   // quem o miner está assistindo agora (o "Farmando" usa isso para pintar de verde)
+      reg.ativos = [...at[1].matchAll(/['"]([A-Za-z0-9_-]{1,50})['"]/g)].map((m) => m[1].toLowerCase());
+      emitir(slot, { tipo: 'ativos', canais: reg.ativos });
+    }
+
     const r = lerLinha(linha);
     if (r && r.pontos !== undefined) {
       const antes = reg.saldos.get(r.canal);
@@ -555,7 +564,7 @@ function criarGerenciador({ app, shell, enviar, pastaExtra }) {
     const proc = spawn(python.cmd, [...python.args, '-u', path.join(raiz, 'main.py')], {
       cwd: dir, env: envPython(raiz), windowsHide: true,
     });
-    const reg = { proc, estado: 'iniciando', codigo: null, mensagem: '', linhas: [], saldos: new Map(), online: new Map(), pid: proc.pid };
+    const reg = { proc, estado: 'iniciando', codigo: null, mensagem: '', linhas: [], saldos: new Map(), online: new Map(), ativos: [], pid: proc.pid };
     contas.set(slot, reg);
     emitir(slot, { tipo: 'estado', estado: 'iniciando', codigo: null });
 
@@ -598,7 +607,7 @@ function criarGerenciador({ app, shell, enviar, pastaExtra }) {
   const pararTodas = (sincrono = false) => [...contas.keys()].forEach((s) => parar(s, sincrono));
   app.on('before-quit', () => pararTodas(true));
 
-  const status = () => Object.fromEntries([...contas.entries()].map(([s, r]) => [s, { estado: r.estado, codigo: r.codigo, linhas: r.linhas.slice(-30), saldos: Object.fromEntries(r.saldos) }]));
+  const status = () => Object.fromEntries([...contas.entries()].map(([s, r]) => [s, { estado: r.estado, codigo: r.codigo, linhas: r.linhas.slice(-30), saldos: Object.fromEntries(r.saldos), ativos: r.ativos || [] }]));
 
   return { checar, instalarDependencias, iniciar, parar, pararTodas, status, estadoDe, gerarConfig, validar };
 }
