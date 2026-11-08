@@ -1,10 +1,11 @@
 const { app, BrowserWindow, shell, dialog, ipcMain, webContents, session, safeStorage } = require('electron');
 const path = require('path');
-const { fileURLToPath } = require('url');
+const { fileURLToPath, pathToFileURL } = require('url');
 const fs = require('fs');
 const { setupTwitchPresence, tokenValido: tokenValidoTwitch } = require('./presence/twitch');
 const { setupKickPresence, tokenValido: tokenValidoKick } = require('./presence/kick');
 const { setupTokenVault } = require('./tokenVault');
+const { urlExternaPermitida } = require('./linksExternos');
 
 if (!app.isPackaged) {
   app.setPath('userData', path.join(app.getPath('appData'), 'pokemultidle-dev'));
@@ -57,6 +58,15 @@ const log = {
   warn: (...a) => { console.warn(...a); escrever('warn', a); },
   error: (...a) => { console.error(...a); escrever('error', a); },
 };
+
+// Único caminho para abrir links no navegador do usuário: só https: dos sites conhecidos (ver linksExternos.js).
+function abrirExterno(url) {
+  if (!urlExternaPermitida(url)) {
+    log.warn(`Link externo bloqueado: ${url}`);
+    return;
+  }
+  shell.openExternal(url).catch((err) => log.warn('Não consegui abrir o link externo:', err));
+}
 
 // ---------------------------------------------------------------------------
 // Estado de saúde: detecta "abriu mal" e "atualização não foi aplicada" na abertura seguinte.
@@ -332,6 +342,10 @@ function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
+      // sandbox: false é OBRIGATÓRIO aqui: com sandbox ligado o Electron não deixa a janela usar <webview>
+      // (webviewTag), e o app inteiro depende dele. Não "reative" sem tirar o <webview> antes.
+      // O que protege a interface: contextIsolation, nodeIntegration desligado no <webview> (ver will-attach-webview)
+      // e a lista de origens permitidas.
       sandbox: false,
       webviewTag: true,            // necessário para <webview>
       backgroundThrottling: false, // mantém os jogos rodando mesmo em segundo plano
@@ -392,10 +406,18 @@ function createWindow() {
     win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
   }
 
-  // Links externos abrem no navegador padrão
+  // Links externos abrem no navegador padrão, mas só https: dos sites conhecidos (ver linksExternos.js)
   win.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    abrirExterno(url);
     return { action: 'deny' };
+  });
+
+  // A janela principal nunca sai da interface do app: qualquer outra navegação vira link externo (filtrado).
+  const raizApp = isDev ? 'http://localhost:5173' : pathToFileURL(path.join(__dirname, '..', 'dist')).href;
+  win.webContents.on('will-navigate', (e, url) => {
+    if (url.startsWith(raizApp)) return;
+    e.preventDefault();
+    abrirExterno(url);
   });
 
   setupAutoUpdate(win);
