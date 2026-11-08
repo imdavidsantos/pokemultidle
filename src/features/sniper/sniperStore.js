@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import { ITENS_MERCADO } from './itensMercado';
 import { createStore } from '../../shared/createStore';
+import { migrarDados } from '../../shared/storage';
 
 // Guarda a config do sniper POR CONTA (slot), os logs e o status ao vivo.
 
@@ -14,6 +15,12 @@ export const INFINITO = 1e9;
 export const RESTAURAR_SNIPER_ATIVO = true;
 
 const CHAVE = 'pokemultidle-sniper-v1';
+// Formato salvo: { v: VERSAO, dados: { contas } }. Ao mudar o formato das regras, suba VERSAO e crie o passo em MIGRACOES
+// (versão antiga -> nova). O que foi salvo antes do versionamento (sem `v`, só { contas }) conta como versão 0.
+const VERSAO = 1;
+const MIGRACOES = {
+  0: (dados) => dados,   // 0 -> 1: só ganhou o envelope { v, dados }; o conteúdo é o mesmo
+};
 const MAX_LOGS = 60;
 
 // Status que são só ruído interno do sniper: nem entram no registro
@@ -34,10 +41,12 @@ const SEM_STATUS = {};
 function carregar() {
   let bruto;
   try {
-    bruto = JSON.parse(localStorage.getItem(CHAVE) || '{}');
+    const migrado = migrarDados(JSON.parse(localStorage.getItem(CHAVE) || '{}'), { versao: VERSAO, migrar: MIGRACOES });
+    if (migrado.futuro) throw new Error(`salvo por uma versão mais nova do app (v${migrado.v})`);
+    bruto = migrado.dados;
   } catch (err) {
-    // ilegível: guarda uma cópia para recuperar à mão e começa vazio
-    console.error('[sniper] configuração salva ilegível; cópia mantida em', `${CHAVE}.bak`, err);
+    // ilegível, de versão futura ou migração falhou: guarda uma cópia para recuperar à mão e começa vazio
+    console.error('[sniper] configuração salva não pôde ser lida; cópia mantida em', `${CHAVE}.bak`, err);
     try { localStorage.setItem(`${CHAVE}.bak`, localStorage.getItem(CHAVE) || ''); } catch { /* ignora */ }
     return {};
   }
@@ -69,7 +78,7 @@ const persistir = () => {
       const atual = localStorage.getItem(CHAVE);
       if (atual) localStorage.setItem(`${CHAVE}.bak`, atual);
     }
-    localStorage.setItem(CHAVE, JSON.stringify({ contas }));
+    localStorage.setItem(CHAVE, JSON.stringify({ v: VERSAO, dados: { contas } }));
   } catch { /* sem espaço */ }
 };
 

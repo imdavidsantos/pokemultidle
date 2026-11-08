@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { createStore } from '../../shared/createStore';
-import { gravarJson as gravar, lerJson } from '../../shared/storage';
+import { gravarJson as gravar, gravarVersionado, lerVersionado } from '../../shared/storage';
 
 // Store compartilhado pelas plataformas de pontos de canal (Twitch, Kick).
 // Guarda por conta: config, estado do miner (vindo do processo principal), saldos, recompensas e resgates.
@@ -8,6 +8,14 @@ import { gravarJson as gravar, lerJson } from '../../shared/storage';
 // em um adaptador fino (ver twitchStore.js e kickStore.js). Toda a lógica comum fica aqui, em um lugar só.
 //
 // As chaves do localStorage continuam as mesmas de antes (pokemultidle-<id>-...), então nada salvo se perde.
+
+// Versão do formato da config por conta (chave pokemultidle-<id>-v1). Salvo como { v, dados: { slot: config } }.
+// Ao mudar o formato, suba VERSAO e crie o passo em MIGRACOES (versão antiga -> nova); o que foi salvo antes do
+// versionamento (o objeto { slot: config } direto) conta como versão 0.
+const VERSAO_CONFIG = 1;
+const MIGRACOES_CONFIG = {
+  0: (dados) => (dados && typeof dados === 'object' && !Array.isArray(dados) ? dados : {}),   // 0 -> 1: só ganhou o envelope
+};
 
 const MAX_LINHAS = 40;
 const MAX_CANAIS = 100;   // por conta (com "canais que sigo" ligado podem ser muitos)
@@ -67,11 +75,11 @@ export function createStreamStore(op) {
   const { subscribe: assinar, emit: avisar } = createStore();
 
   // ---------- config por conta ----------
-  let contas = lerJson(CHAVE, {});   // slot -> config
+  let contas = lerVersionado(CHAVE, { versao: VERSAO_CONFIG, migrar: MIGRACOES_CONFIG, padrao: {} });   // slot -> config
   let estados = {};     // slot -> { estado, codigo, mensagem, linhas, ...extras }
   let checagem = null;  // resultado de window[id].checar()
   let pip = [];         // linhas da instalação de dependências
-  const persistir = () => gravar(CHAVE, contas);
+  const persistir = () => gravarVersionado(CHAVE, VERSAO_CONFIG, contas);
 
   const ponte = () => (typeof window !== 'undefined' ? window[id] : undefined);
   const disponivel = () => !!ponte();
