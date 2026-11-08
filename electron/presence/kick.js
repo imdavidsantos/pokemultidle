@@ -13,6 +13,7 @@ const { NOME_MODS, rodar, acharRaiz: acharRaizEm, localizarPasta: localizarPasta
 
 const NOME_MINER = 'Kick_Channel_Points_Miner-2.1';   // subpasta deste miner dentro de mods/
 const MAX_LINHAS = 200;
+// eslint-disable-next-line no-control-regex -- de propósito: tira as cores ANSI (ESC[...m) das linhas do miner
 const ANSI = /\x1b\[[0-9;]*m/g;
 const RE_CANAL = /^[A-Za-z0-9_-]{1,50}$/;                                  // streamers (slug da Kick)
 const RE_TOKEN = /^[A-Za-z0-9|._~+/=-]{10,800}$/;                          // ex.: 123456789|abcDEF...

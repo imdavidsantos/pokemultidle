@@ -70,7 +70,7 @@ function limparGlobal(g, ehNota = false) {
 // Texto JSON com as regras da conta. Não leva o contador de comprados, o id nem os interruptores
 // (ligado / simulação): cada conta mantém os seus.
 export function serializarRegras(cfg, { nomeConta } = {}) {
-  const semContador = ({ id, comprados, zerarEm, ...resto }) => resto;   // eslint-disable-line no-unused-vars
+  const semContador = ({ id, comprados, zerarEm, ...resto }) => resto;   // id/comprados/zerarEm saem de propósito
   const global = {};
   for (const k of GLOBAIS) global[k] = cfg?.global?.[k] ? semContador(cfg.global[k]) : null;
   return JSON.stringify({

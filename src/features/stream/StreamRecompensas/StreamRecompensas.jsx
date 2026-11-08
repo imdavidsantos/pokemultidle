@@ -9,7 +9,7 @@ export default function StreamRecompensas({ plataforma, slot, slug, nome, pontos
   const res = useResgate(slot);
   const [textos, setTextos] = useState({});   // id da recompensa -> texto digitado
 
-  useEffect(() => { buscarRecompensas(slot, slug); }, [slot, slug]);
+  useEffect(() => { buscarRecompensas(slot, slug); }, [buscarRecompensas, slot, slug]);
 
   const lista = [...rec.lista].sort((a, b) => a.custo - b.custo);
   const saldo = Number.isFinite(pontos) ? pontos : null;

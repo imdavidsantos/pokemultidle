@@ -26,6 +26,7 @@ const chaveDe = (plat, slot) => `${plat}:${slot}`;
 const validarGenerico = ({ token }) => {
   const t = String(token ?? '').trim();
   if (!t) return { erro: 'Token vazio.' };
+  // eslint-disable-next-line no-control-regex -- de propósito: token não pode ter espaço nem caractere de controle
   if (t.length > MAX_TOKEN || /[\s\x00-\x1f]/.test(t)) return { erro: 'Token com formato inválido.' };
   return { token: t };
 };

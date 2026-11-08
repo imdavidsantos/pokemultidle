@@ -81,6 +81,7 @@ function dentroDaPagina() {
         //   && !/^market\./.test(tp);
         // para loja: 
         // const interessa = /loja|shop|store|inv|bag|compr|buy/i.test(tp) && !/^market\./.test(tp);
+        const interessa = false;   // troque por uma das condições comentadas acima para filtrar o que capturar
         if (!tiposCapturados[tp] || interessa) { tiposCapturados[tp] = true; capturar('entrada', ev.data); }
       }
       // o socket do jogo é o que recebe welcome/estado (evita enviar para outro socket da página)

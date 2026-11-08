@@ -9,6 +9,7 @@ const { NOME_MODS, rodar, acharRaiz: acharRaizEm, localizarPasta: localizarPasta
 
 const NOME_MINER = 'Twitch-Channel-Points-Miner-v3-3.19.6';   // subpasta deste miner dentro de mods/
 const MAX_LINHAS = 200;
+// eslint-disable-next-line no-control-regex -- de propósito: tira as cores ANSI (ESC[...m) das linhas do miner
 const ANSI = /\x1b\[[0-9;]*m/g;
 const RE_USUARIO = /^[A-Za-z0-9_]{1,25}$/;       // vale para a conta e para os streamers
 const CHATS = ['ONLINE', 'ALWAYS', 'NEVER', 'OFFLINE'];
