@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { QTD_MIN, clampQtd, pausa } from '../utils/loja';
+import { registrarIcones } from '../../sniper/sniperStore';
 
 /**
  * Toda a lógica do painel de estoque: ler os itens do jogo, controlar a quantidade
@@ -24,7 +25,9 @@ export default function useRestock({ onList, onBuy }) {
     lendo.current = (async () => {
       try {
         setErro('');
-        setItens((await onListRef.current()) ?? []);
+        const lista = (await onListRef.current()) ?? [];
+        registrarIcones(lista);   // o sniper reaproveita os ícones reais lidos da tela
+        setItens(lista);
       } catch (err) {
         console.warn('Falha ao listar itens:', err);
         setErro(err?.message || 'Não foi possível ler os itens do jogo.');

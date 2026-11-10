@@ -113,10 +113,32 @@ function persistirItens() {
   try { localStorage.setItem(CHAVE_ITENS, JSON.stringify(novos)); } catch { /* sem espaço */ }
 }
 
+// ---- ícones dos itens: id -> url (aprendido do jogo, guardado para a próxima abertura) ----
+const CHAVE_ICONES = 'pokemultidle-sniper-icones-v1';
+function carregarIcones() {
+  try { return JSON.parse(localStorage.getItem(CHAVE_ICONES) || '{}') || {}; } catch { return {}; }
+}
+let icones = carregarIcones();
+
+// lista: [{ id, icone }]. Só grava (e avisa) se algo mudou de verdade.
+export function registrarIcones(lista) {
+  let mudou = false;
+  const novo = { ...icones };
+  for (const it of lista || []) {
+    const id = it && it.id != null ? String(it.id) : '';
+    if (id && typeof it.icone === 'string' && it.icone && novo[id] !== it.icone) { novo[id] = it.icone; mudou = true; }
+  }
+  if (!mudou) return;
+  icones = novo;
+  try { localStorage.setItem(CHAVE_ICONES, JSON.stringify(icones)); } catch { /* sem espaço */ }
+  avisar();
+}
+
 // ---- hooks (o valor só muda de referência quando algo muda de verdade) ----
 export const useSniperConfig = (slot) => useSyncExternalStore(assinar, () => contas[slot] ?? VAZIA);
 export const useSniperLogs = (slot) => useSyncExternalStore(assinar, () => logs[slot] ?? SEM_LOGS);
 export const useCatalogoItens = () => useSyncExternalStore(assinar, () => catalogoLista, () => catalogoLista);
+export const useIconeItem = (id) => useSyncExternalStore(assinar, () => (id != null ? icones[String(id)] ?? null : null), () => null);
 export const useSniperStatus = (slot) => useSyncExternalStore(assinar, () => status[slot] ?? SEM_STATUS);
 
 // ---- ações ----
@@ -221,8 +243,10 @@ export function registrarEvento(slot, ev) {
   else if (tipo === 'saldo') atualizar({ socket: true, saldo: dados });
   else if (tipo === 'erro') atualizar({ erro: dados });
   else if (tipo === 'varredura') atualizar({ varredura: { ...(status[slot]?.varredura ?? {}), [dados.regra]: dados } });
+  else if (tipo === 'icones') { registrarIcones(dados.itens); return; }   // ícones lidos da tela do jogo
   else if (tipo === 'catalogo') {
     for (const it of dados.itens || []) aprendidos[it.id] = it;
+    registrarIcones(dados.itens);
     catalogoLista = montarCatalogo();
     persistirItens();
   }

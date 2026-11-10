@@ -79,7 +79,7 @@ function dentroDaPagina() {
         // para qualquer pacote que cite twitch/kick/parceiro/streamer/canal:
         // const interessa = /twitch|kick|parceir|partner|streamer|live|canal|canais|b[oô]nus|bonus/i.test(tp + ' ' + ev.data.slice(0, 6000))
         //   && !/^market\./.test(tp);
-        // para loja: 
+        // para loja:
         // const interessa = /loja|shop|store|inv|bag|compr|buy/i.test(tp) && !/^market\./.test(tp);
         const interessa = false;   // troque por uma das condições comentadas acima para filtrar o que capturar
         if (!tiposCapturados[tp] || interessa) { tiposCapturados[tp] = true; capturar('entrada', ev.data); }
@@ -152,9 +152,33 @@ function dentroDaPagina() {
       emitir('catalogo', { itens: Object.keys(catalogo).map((k) => catalogo[k]) });
     }, 1500);
   }
+  // Acha a imagem de um item sem depender do nome do campo: tenta os nomes comuns e,
+  // se não achar, pega qualquer texto que termine em .png/.webp/.gif/.svg/.jpg (também 1 nível dentro de objetos).
+  const EXT_IMG = /\.(png|webp|gif|svg|jpe?g)(\?.*)?$/i;
+  const CAMPOS_IMG = ['ico', 'icon', 'icone', 'ícone', 'img', 'image', 'imagem', 'sprite', 'src', 'url', 'arquivo', 'file'];
+  // O jogo escreve o ícone como "img:/img/itens/casa-comum.png" (prefixo "img:"): tira o prefixo antes de resolver.
+  const urlAbsoluta = (v) => { try { return new URL(String(v).replace(/^img:/i, ''), location.origin).href; } catch (e) { return null; } };
+  function acharIcone(it) {
+    for (const k of CAMPOS_IMG) {
+      if (typeof it[k] === 'string' && EXT_IMG.test(it[k])) return urlAbsoluta(it[k]);
+    }
+    for (const k of Object.keys(it)) {
+      const v = it[k];
+      if (typeof v === 'string' && EXT_IMG.test(v)) return urlAbsoluta(v);   // vale também o "img:..." do jogo
+      if (v && typeof v === 'object' && !Array.isArray(v)) {
+        for (const k2 of Object.keys(v)) if (typeof v[k2] === 'string' && EXT_IMG.test(v[k2])) return urlAbsoluta(v[k2]);
+      }
+    }
+    return null;
+  }
+  let exemploLogado = false;
   function aprender(lista, negociavel) {
     if (!Array.isArray(lista)) return;
     let mudou = false;
+    if (!exemploLogado && lista.length && lista[0] && typeof lista[0] === 'object') {
+      exemploLogado = true;   // 1 exemplo no console (F12) para conferir de onde vem o ícone
+      console.log('[sniper] exemplo de item do jogo:', JSON.stringify(lista[0]).slice(0, 400), '=> ícone:', acharIcone(lista[0]));
+    }
     for (const it of lista) {
       const id = Number(it && it.id);
       const nome = it && (it.name || it.nome);
@@ -162,8 +186,9 @@ function dentroDaPagina() {
       const cat = String(it.category || it.categoria || '').toLowerCase();
       if (cat === 'heal' || cat === 'potion') continue;
       const ant = catalogo[id];
-      if (!ant || ant.name !== String(nome) || (negociavel && !ant.neg)) {
-        catalogo[id] = { id, name: String(nome), cat, neg: !!(negociavel || (ant && ant.neg)) };
+      const icone = acharIcone(it) || (ant && ant.icone) || null;
+      if (!ant || ant.name !== String(nome) || (negociavel && !ant.neg) || ant.icone !== icone) {
+        catalogo[id] = { id, name: String(nome), cat, neg: !!(negociavel || (ant && ant.neg)), icone };
         mudou = true;
       }
     }
@@ -519,6 +544,28 @@ function dentroDaPagina() {
     if (d && d.source === 'PM_APP' && d.tipo === 'config') aplicarConfig(d.cfg);
     if (d && d.source === 'PM_APP' && d.tipo === 'loja') comprarLoja(d);
   });
+
+  // ---------- ícones vistos na tela do jogo ----------
+  // As linhas do jogo trazem o id do item e a imagem real: <button data-item="70040"><span class="cmi-ico"><img src="/img/itens/casa-comum.png">.
+  // Lê isso a cada 2 s (só avisa o app quando aparece ícone novo ou muda um).
+  const iconesVistos = {};
+  setInterval(() => {
+    try {
+      const novos = [];
+      for (const el of document.querySelectorAll('[data-item]')) {
+        const id = Number(el.getAttribute('data-item'));
+        if (!id) continue;
+        const img = el.querySelector('img');
+        const src = img && (img.getAttribute('src') || '');
+        const doAttr = (el.querySelector('[data-ico]') || {}).getAttribute ? el.querySelector('[data-ico]').getAttribute('data-ico') : '';
+        const bruto = src || (/^img:/i.test(doAttr || '') ? doAttr : '');
+        if (!bruto) continue;
+        const url = urlAbsoluta(bruto);
+        if (url && iconesVistos[id] !== url) { iconesVistos[id] = url; novos.push({ id, icone: url }); }
+      }
+      if (novos.length) emitir('icones', { itens: novos });
+    } catch (e) { /* ignora */ }
+  }, 2000);
 
   // ---------- varredura do mercado (a cada 3 s, como a extensão) ----------
   setInterval(() => {

@@ -250,6 +250,7 @@ export default function SniperPanel({ accounts, nomesPokemon = [], onClose }) {
                         regra={r}
                         onOpen={() => abrirRegra(r.id)}
                         onToggle={(active) => editarRegra(r.id, { active })}
+                        onRemove={() => removerRegra(r.id)}
                       />
                     )
                 ))}

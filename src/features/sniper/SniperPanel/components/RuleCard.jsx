@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useIconeItem } from '../../sniperStore';
 
 // Formata 415000000 -> "415M", 1500000000 -> "1,5B", 12000 -> "12K"
 const fmtCompacto = (n) => {
@@ -11,12 +12,21 @@ const fmtCompacto = (n) => {
   return v.toLocaleString('pt-BR');
 };
 
-// Por enquanto tenta alguns campos comuns da regra; se não achar, mostra a inicial do nome.
-export const imagemDaRegra = (regra) => regra.imagem ?? regra.img ?? regra.icone ?? regra.sprite ?? null;
+// Imagem da regra: imagem própria da regra > ícone real aprendido do jogo (pelo id do item).
+// Não dá para adivinhar pelo nome: o site usa nomes próprios e subpastas (ex.: /img/itens/casa-comum.png,
+// /img/itens/zmove/aoe-peca.png). Sem ícone aprendido ainda, mostra a inicial do nome.
+export const imagemDaRegra = (regra, iconeAprendido = null) => {
+  const propria = regra.imagem ?? regra.img ?? regra.icone ?? regra.sprite ?? null;
+  if (propria) return propria;
+  if (regra.tipo === 'item' && iconeAprendido) return iconeAprendido;
+  return null;
+};
 
-export default function RuleCard({ regra, onOpen, onToggle }) {
+export default function RuleCard({ regra, onOpen, onToggle, onRemove }) {
   const [imgFalhou, setImgFalhou] = useState(false);
-  const url = imagemDaRegra(regra);
+  const aprendido = useIconeItem(regra.tipo === 'item' ? regra.alvoId : null);
+  const url = imagemDaRegra(regra, aprendido);
+  useEffect(() => { setImgFalhou(false); }, [url]);   // trocou o item da regra: tenta a imagem de novo
   const nome = regra.alvoNome?.trim() || 'Sem nome';
   const ouro = fmtCompacto(regra.maxOuro);
   const gemas = fmtCompacto(regra.maxGemas);
@@ -45,6 +55,15 @@ export default function RuleCard({ regra, onOpen, onToggle }) {
         aria-label={`Regra ${nome} ativa`}
         title={regra.active ? 'Clique para pausar esta regra' : 'Clique para reativar esta regra'}
       />
+
+      <button
+        type="button"
+        className="rcard__remover"
+        onClick={(e) => { e.stopPropagation(); onRemove?.(); }}
+        onKeyDown={(e) => e.stopPropagation()}
+        aria-label={`Excluir regra ${nome}`}
+        title="Excluir esta regra"
+      >✕</button>
 
       {!regra.active && <span className="rcard__pausada">Pausada</span>}
 

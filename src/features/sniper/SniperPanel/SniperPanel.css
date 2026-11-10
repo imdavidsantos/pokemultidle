@@ -451,15 +451,35 @@ input.sniper__input[type='number']::-webkit-inner-spin-button { -webkit-appearan
 .rcard.is-off .rcard__preco,
 .rcard.is-off .rcard__rodape { opacity: 0.4; filter: grayscale(1); }
 
+/* Pausada: selo no meio do card, por cima do conteúdo escurecido (não intercepta cliques) */
 .rcard__pausada {
-  position: absolute; top: 6px; right: 6px;
-  padding: 1px 6px;
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 2px 8px;
   border-radius: 999px;
   background: var(--bg);
   border: 1px solid var(--line);
   font-size: 10px; font-weight: 600;
   color: var(--muted);
+  pointer-events: none;
+  z-index: 1;
 }
+
+/* X de excluir: canto superior direito, espelhando a bolinha da esquerda */
+.sniper .rcard button.rcard__remover {
+  position: absolute; top: 6px; right: 6px;
+  width: 20px; height: 20px;
+  padding: 0;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 11px; line-height: 1;
+  cursor: pointer;
+  z-index: 2;
+}
+.sniper .rcard button.rcard__remover:hover { background: var(--sn-bad); border-color: var(--sn-bad); color: #fff; }
 
 /* Seletor mais específico para vencer ".sniper input[type='checkbox']" (position: relative) */
 .sniper .rcard input.rcard__toggle { position: absolute; top: 6px; left: 6px; width: 20px; height: 20px; z-index: 1; }
