@@ -1,165 +1,413 @@
 .sniper {
+  --sn-ok: #3fb36b;
+  --sn-warn: #d9a21b;
+  --sn-bad: #e5534b;
+  --sn-info: #4f8cff;
+  --sn-radius: 8px;
+
   position: fixed;
-  top: 32px;   /* 44px da TopBar + 6px de respiro */
-  right: 4px;
+  top: 36px;                       /* altura da TopBar + respiro */
+  right: 6px;
   z-index: 50;
-  width: min(620px, calc(100vw));
-  max-height: calc(100vh - 36px);
+  width: min(620px, calc(100vw - 12px));
+  max-height: calc(100vh - 44px);
   display: flex;
   flex-direction: column;
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 2px;
+  border-radius: 10px;
   overflow: hidden;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
   color: var(--text);
+  font-size: 13px;
 }
 
+/* ---------- Cabeçalho ---------- */
 .sniper__bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 10px;
+  padding: 10px 12px;
   border-bottom: 1px solid var(--line);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
 }
 .sniper__bar-acoes { display: flex; align-items: center; gap: 8px; }
-.sniper__fechar { border: 0; background: none; color: var(--muted); font-size: 14px; cursor: pointer; }
-.sniper__fechar:hover { color: var(--text); }
+.sniper__fechar {
+  width: 26px; height: 26px;
+  border: 0; border-radius: 6px;
+  background: none; color: var(--muted);
+  font-size: 14px; cursor: pointer;
+}
+.sniper__fechar:hover { background: var(--panel-2); color: var(--text); }
 
-.sniper__abas { display: flex; gap: 4px; padding: 6px 10px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+/* ---------- Abas de conta ---------- */
+.sniper__abas {
+  display: flex; gap: 4px; flex-wrap: wrap;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+}
 .sniper__aba {
-  padding: 4px 12px;
+  padding: 5px 14px;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: 999px;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
   white-space: nowrap;
+  transition: background .12s, color .12s, border-color .12s;
 }
 .sniper__aba:hover { background: var(--panel-2); color: var(--text); }
-.sniper__aba.is-active { background: var(--panel-2); color: var(--text); border-color: var(--accent); }
+.sniper__aba.is-active {
+  background: var(--panel-2);
+  color: var(--text);
+  border-color: var(--accent);
+  font-weight: 600;
+}
 
-.sniper__body { display: flex; flex-direction: column; gap: 12px; padding: 10px; overflow-y: auto; min-height: 0; }
-
-.sniper__chaves { display: flex; gap: 18px; flex-wrap: wrap; }
-.sniper__check { display: inline-flex; align-items: center; gap: 6px; font-size: 16px; cursor: pointer; }
-
-.sniper__modo { padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; border: 1px solid var(--line); }
-.sniper__modo--off  { color: var(--muted); }
-.sniper__modo--sim  { color: #d9a21b; border-color: #d9a21b; background: rgba(217, 162, 27, 0.1); }
-.sniper__modo--real { color: #fff; border-color: #86efac; background: #4ade80; color: black; }
-
-.sniper__status { font-size: 12px; color: var(--muted); }
-
-.sniper__titulo-sec { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
-.sniper__titulo-sec h3 { margin: 0; font-size: 13px; }
-.sniper__vazio { margin: 4px 0; font-size: 12px; color: var(--muted); }
-
-.sniper__regra {
+/* ---------- Topo fixo: modo + status (não rola) ---------- */
+.sniper__topo {
   display: grid;
-  gap: 6px;
-  padding: 8px;
-  margin-bottom: 6px;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+
+/* Seletor de modo (Desligado / Simulação / Ligado) */
+.sniper__seg {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 3px;
+  padding: 3px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--sn-radius);
+}
+.sniper__seg-btn {
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .12s, color .12s;
+}
+.sniper__seg-btn:hover { background: var(--panel-2); color: var(--text); }
+.sniper__seg-btn.is-on { color: #fff; }
+.sniper__seg-btn--off.is-on  { background: #5b6270; }
+.sniper__seg-btn--sim.is-on  { background: #a8841c; }
+.sniper__seg-btn--real.is-on { background: var(--sn-ok); color: #04210f; }
+
+/* Explicação do modo atual */
+.sniper__modo {
+  padding: 6px 10px;
+  border-left: 3px solid var(--line);
+  border-radius: 0 6px 6px 0;
+  font-size: 12px;
+  font-weight: 500;
+  background: var(--panel-2);
+  color: var(--muted);
+}
+.sniper__modo--off  { border-left-color: #5b6270; }
+.sniper__modo--sim  { border-left-color: var(--sn-warn); color: var(--sn-warn); }
+.sniper__modo--real { border-left-color: var(--sn-ok); color: var(--text); }
+
+/* Status de conexão com bolinha */
+.sniper__status {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: var(--muted);
+}
+.sniper__dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--sn-ok);
+  box-shadow: 0 0 0 3px rgba(63, 179, 107, 0.2);
+  flex: none;
+}
+.sniper__saldo { margin-left: auto; display: flex; gap: 12px; font-variant-numeric: tabular-nums; color: var(--text); }
+
+/* ---------- Corpo rolável ---------- */
+.sniper__body {
+  display: flex; flex-direction: column; gap: 16px;
+  padding: 12px;
+  overflow-y: auto;
+  min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+.sniper__body::-webkit-scrollbar { width: 6px; }
+.sniper__body::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+
+/* Compat: caso algum componente ainda use as classes antigas */
+.sniper__chaves { display: flex; gap: 18px; flex-wrap: wrap; }
+.sniper__check { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer; }
+
+/* ---------- Seções ---------- */
+.sniper__titulo-sec {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; margin-bottom: 8px;
+}
+.sniper__titulo-sec h3 { margin: 0; font-size: 13px; font-weight: 600; }
+.sniper__contador {
+  margin-left: 6px; padding: 1px 7px;
+  border-radius: 999px; background: var(--panel-2);
+  color: var(--muted); font-size: 11px; font-weight: 600;
+}
+.sniper__vazio {
+  margin: 4px 0; padding: 14px;
+  border: 1px dashed var(--line); border-radius: var(--sn-radius);
+  text-align: center; font-size: 12px; color: var(--muted);
+}
+
+/* ---------- Regras ---------- */
+.sniper__regra {
+  display: grid; gap: 8px;
+  padding: 10px 10px 10px 12px;
+  margin-bottom: 8px;
   background: var(--panel-2);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-left: 3px solid var(--accent);
+  border-radius: var(--sn-radius);
+  transition: border-color .12s, opacity .12s;
 }
-.sniper__regra.is-off { opacity: 0.55; }
+.sniper__regra:hover { border-color: var(--accent); }
+.sniper__regra.is-off { opacity: 0.55; border-left-color: var(--line); }
 .sniper__linha { display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap; }
 .sniper__linha:first-child { align-items: center; }
-.sniper__globais { display: grid; }
+.sniper__globais { display: grid; gap: 8px; }
 
-.sniper__campo { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: var(--muted); }
-.sniper__comprados { display: inline-flex; align-items: center; gap: 6px; height: 28px; font-size: 12px; color: var(--text); }
+.sniper__campo { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--muted); }
+.sniper__comprados {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 28px; font-size: 12px; color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
 
+/* ---------- Inputs ---------- */
 .sniper__input {
   box-sizing: border-box;
-  padding: 5px 7px;
+  padding: 6px 8px;
   border: 1px solid var(--line);
-  border-radius: 5px;
+  border-radius: 6px;
   background: var(--bg);
   color: var(--text);
   font: inherit;
   font-size: 12px;
   min-width: 0;
+  transition: border-color .12s, box-shadow .12s;
 }
-.sniper__input:focus { outline: none; border-color: var(--accent); }
 .sniper__input:hover { border-color: var(--accent); }
+.sniper__input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(79, 140, 255, 0.25); }
 .sniper__nome { flex: 1; }
 input.sniper__input[type='number'] { -moz-appearance: textfield; appearance: textfield; text-align: center; }
 input.sniper__input[type='number']::-webkit-outer-spin-button,
 input.sniper__input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 
+/* ---------- Botões ---------- */
 .sniper__btn {
-  padding: 4px 10px;
+  padding: 5px 12px;
   border: 1px solid var(--line);
-  border-radius: 5px;
+  border-radius: 6px;
   background: transparent;
   color: var(--muted);
   font-size: 12px;
   cursor: pointer;
   white-space: nowrap;
+  transition: background .12s, color .12s, border-color .12s;
 }
 .sniper__btn:hover { background: var(--panel-2); color: var(--text); }
-.sniper__btn--perigo:hover { background: #d9534f; border-color: #d9534f; color: #fff; }
+.sniper__btn--primario { border-color: var(--accent); color: var(--text); }
+.sniper__btn--primario:hover { background: var(--accent); color: #fff; }
+.sniper__btn--perigo:hover { background: var(--sn-bad); border-color: var(--sn-bad); color: #fff; }
 
-.sniper__aviso-regra { width: 100%; font-size: 11px; color: #d9a21b; }
+/* Foco visível para teclado */
+.sniper button:focus-visible,
+.sniper select:focus-visible,
+.sniper input[type='checkbox']:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 
-.sniper__log { display: grid; gap: 3px; max-height: 180px; overflow-y: auto; }
+.sniper__aviso-regra { width: 100%; font-size: 11px; color: var(--sn-warn); }
+
+/* ---------- Log ---------- */
+.sniper__log { display: grid; gap: 4px; max-height: 180px; overflow-y: auto; }
 .sniper__log-item { display: flex; align-items: baseline; gap: 6px; font-size: 12px; }
 .sniper__hora { color: var(--muted); font-variant-numeric: tabular-nums; flex: none; }
 .sniper__log-txt { min-width: 0; word-break: break-word; }
-.sniper__selo { flex: none; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; color: #fff; background: #4f8cff; }
+.sniper__selo { flex: none; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; color: #fff; background: var(--sn-info); }
 .sniper__selo--ok   { background: #2e9e5b; }
 .sniper__selo--sim  { background: #8a7a2b; }
-.sniper__selo--warn { background: #d9a21b; }
-.sniper__selo--erro { background: #d9534f; }
+.sniper__selo--warn { background: var(--sn-warn); }
+.sniper__selo--erro { background: var(--sn-bad); }
 
-.sniper__diag { display: grid; gap: 4px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-2); font-size: 12px; }
+/* ---------- Diagnóstico ---------- */
+.sniper__diag { display: grid; gap: 4px; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--sn-radius); background: var(--panel-2); font-size: 12px; }
 .sniper__diag-titulo { font-weight: 600; }
 .sniper__diag-passo { display: grid; gap: 2px; color: var(--muted); }
 .sniper__diag-passo.is-ok { color: var(--text); }
 .sniper__diag-passo.is-falha { color: var(--text); }
-.sniper__diag-passo small { color: #d9a21b; font-size: 11px; }
+.sniper__diag-passo small { color: var(--sn-warn); font-size: 11px; }
 .sniper__diag-trafego { color: var(--muted); word-break: break-word; }
 .sniper__diag-erro { color: #f85149; word-break: break-word; }
 
+/* ---------- Picker de pokémon/item ---------- */
 .sniper__linha--topo { align-items: flex-start; }
 .sniper__linha--topo > select, .sniper__linha--topo > input[type='checkbox'] { margin-top: 3px; }
 
 .sniper__picker { position: relative; flex: 1; min-width: 160px; display: grid; gap: 3px; }
 .sniper__picker-input { width: 100%; }
 .sniper__sugestoes {
-  position: absolute; top: 30px; left: 0; right: 0; z-index: 5;
+  position: absolute; top: 34px; left: 0; right: 0; z-index: 5;
   margin: 0; padding: 3px; list-style: none;
+  max-height: 220px; overflow-y: auto;
   background: var(--panel); border: 1px solid var(--accent); border-radius: 6px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
-.sniper__sugestao { display: flex; justify-content: space-between; gap: 8px; padding: 5px 8px; border-radius: 4px; font-size: 12px; cursor: pointer; }
+.sniper__sugestao { display: flex; justify-content: space-between; gap: 8px; padding: 6px 8px; border-radius: 4px; font-size: 12px; cursor: pointer; }
 .sniper__sugestao small { color: var(--muted); white-space: nowrap; }
 .sniper__sugestao:hover, .sniper__sugestao.is-on { background: var(--panel-2); }
 
 .sniper__resolvido { font-size: 11px; color: var(--muted); }
 .sniper__resolvido.is-ok { color: #2e9e5b; }
-.sniper__resolvido.is-erro { color: #d9a21b; }
+.sniper__resolvido.is-erro { color: var(--sn-warn); }
 
+/* ---------- Resultado da varredura por regra ---------- */
 .sniper__scan { width: 100%; font-size: 11px; color: var(--muted); }
 .sniper__scan--dentro { color: #2e9e5b; }
 .sniper__scan--acima { color: var(--muted); }
-.sniper__scan--sem-id, .sniper__scan--sem-teto, .sniper__scan--limite, .sniper__scan--velho { color: #d9a21b; }
-.sniper__scan--fora-do-mercado { color: #4f8cff; }
+.sniper__scan--sem-id, .sniper__scan--sem-teto, .sniper__scan--limite, .sniper__scan--velho { color: var(--sn-warn); }
+.sniper__scan--fora-do-mercado { color: var(--sn-info); }
 
-/* Esconde a barra de rolagem em todo o painel. */
-.sniper,
-.sniper * {
-  scrollbar-width: none;       /* Firefox */
-  -ms-overflow-style: none;    /* IE/Edge antigo */
+/* ---------- Mobile / janela estreita ---------- */
+@media (max-width: 520px) {
+  .sniper__seg-btn { padding: 8px 4px; font-size: 12px; }
+  .sniper__saldo { margin-left: 0; width: 100%; }
 }
-.sniper::-webkit-scrollbar,
-.sniper *::-webkit-scrollbar {
-  display: none;               /* Chromium/Electron */
-  width: 0;
-  height: 0;
+
+@media (prefers-reduced-motion: reduce) {
+  .sniper * { transition: none !important; }
+}
+
+.sniper input[type='checkbox'] {
+  -webkit-appearance: none;
+  appearance: none;
+  position: relative;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border: 2px solid #3a3a42;
+  border-radius: 50%;
+  background: #26262c;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, box-shadow .15s;
+}
+.sniper input[type='checkbox']:hover {
+  border-color: #8b5cf6;
+}
+.sniper input[type='checkbox']:checked {
+  background: #8b5cf6;
+  border-color: #8b5cf6;
+}
+/* Tique branco dentro da bolinha */
+.sniper input[type='checkbox']::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  width: 4px;
+  height: 8px;
+  border: solid #000;
+  border-width: 0 2px 2px 0;
+  transform: translate(-50%, -50%) rotate(45deg) scale(0);
+  transition: transform .12s;
+}
+.sniper input[type='checkbox']:checked::after {
+  transform: translate(-50%, -50%) rotate(45deg) scale(1);
+}
+.sniper input[type='checkbox']:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.35);
+}
+.sniper input[type='checkbox']:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+.sniper * {
+  scrollbar-width: thin;                                /* Firefox */
+  scrollbar-color: rgba(139, 92, 246, 0.55) transparent;
+}
+.sniper *::-webkit-scrollbar { width: 4px; height: 4px; }
+.sniper *::-webkit-scrollbar-track { background: transparent; }
+.sniper *::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.55);
+  border-radius: 2px;
+}
+.sniper *::-webkit-scrollbar-thumb:hover { background: #8b5cf6; }
+.sniper *::-webkit-scrollbar-button { display: none; } /* tira as setinhas */
+
+.sniper--centro {
+  --sn-centro-w: 1400px;
+  --sn-centro-h: 900px;
+
+  top: 50%;
+  left: 50%;
+  right: auto;
+  transform: translate(-50%, -50%);
+  width: min(var(--sn-centro-w), calc(100vw - 32px));
+  height: min(var(--sn-centro-h), calc(100vh - 32px));
+  max-height: none;
+  font-size: 14px;
+  border-radius: 12px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.7);
+}
+
+.sniper__fundo {
+  position: fixed;
+  inset: 0;
+  z-index: 49;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
+}
+
+/* Blocos do corpo: no painel pequeno só empilham */
+.sniper__area-share,
+.sniper__area-regras { min-width: 0; }
+.sniper__area-extra { display: grid; gap: 16px; min-width: 0; align-content: start; }
+
+/* Duas colunas: regras à esquerda; compartilhar, globais e log à direita */
+.sniper--centro .sniper__body {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas:
+    "regras share"
+    "regras extra";
+  gap: 16px 20px;
+  padding: 16px;
+  overflow: hidden;          /* cada coluna rola sozinha */
+}
+.sniper--centro .sniper__area-regras { grid-area: regras; overflow-y: auto; padding-right: 6px; }
+.sniper--centro .sniper__area-share  { grid-area: share; }
+.sniper--centro .sniper__area-extra  { grid-area: extra; overflow-y: auto; padding-right: 6px; }
+
+.sniper--centro .sniper__topo { padding: 12px 16px; }
+.sniper--centro .sniper__abas { padding: 10px 16px; }
+.sniper--centro .sniper__bar { padding: 12px 16px; font-size: 15px; }
+.sniper--centro .sniper__log { max-height: none; }
+
+@media (max-width: 900px) {
+  .sniper--centro .sniper__body {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .sniper--centro .sniper__area-regras,
+  .sniper--centro .sniper__area-extra { overflow: visible; padding-right: 0; }
 }

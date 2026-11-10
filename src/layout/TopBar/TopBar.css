@@ -1,15 +1,16 @@
 .topbar {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 10px;
   height: 28px;
   padding: 0 10px;
   background: var(--panel);
   border-bottom: 1px solid var(--line);
 }
+
+/* ---------- Marca ---------- */
 .topbar__brand { display: flex; align-items: center; gap: 8px; }
 .topbar__logo { width: 16px; height: 16px; }
-
 .topbar__title {
   margin: 0;
   font-size: 15px;
@@ -19,44 +20,89 @@
   white-space: nowrap;
 }
 
-
-.topbar__tabs {
+/* ---------- Lado direito ---------- */
+.topbar__direita {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 8px;
   margin-left: auto;
 }
+.topbar__sep { width: 1px; height: 14px; background: var(--line); flex: none; }
 
-.topbar__tab {
-  padding: 1px 6px;
-  border: 1px solid transparent;
+/* ---------- Layout das telas (segmentado) ---------- */
+.topbar__seg {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  height: 22px;
+  padding: 1px;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+}
+.topbar__seg-btn {
+  height: 100%;
+  padding: 0 9px;
+  border: 0;
   border-radius: 4px;
   background: transparent;
   color: var(--muted);
-  white-space: nowrap;
-  transition: background 0.15s, color 0.15s;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background .15s, color .15s;
 }
+.topbar__seg-btn:hover { background: var(--panel-2); color: var(--text); }
+.topbar__seg-btn.is-active { background: var(--panel-2); color: var(--text); box-shadow: inset 0 0 0 1px var(--accent); }
 
-.topbar__tab:hover { background: var(--panel-2); color: var(--text); }
-.topbar__tab.is-active { background: var(--panel-2); color: var(--text); border-color: var(--accent); }
+/* ---------- Botões de painel ---------- */
+.topbar__paineis { display: flex; align-items: center; gap: 4px; }
 
-.topbar__add {
-  padding: 0px;
-  border: 0;
-  border-radius: 4px;
+.topbar__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 10px;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.topbar__btn:hover { background: var(--panel-2); border-color: var(--accent); }
+.topbar__btn.is-active {
   background: var(--accent);
-  color: var(--accent-ink);
-  font-weight: 600;
-  white-space: nowrap;
+  border-color: var(--accent);
+  color: var(--accent-ink, #fff);
 }
-.topbar__hunt {
-  background-color: var(--accent);
-  color: var(--bg);
-  font-weight: 600;
-  transition: background-color 0.25s ease, color 0.25s ease;
+.topbar__btn.is-active:hover { filter: brightness(1.1); }
+
+/* Bolinha com a cor da plataforma */
+.topbar__dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.topbar__dot--twitch { background: #9146ff; }
+.topbar__dot--kick { background: #53fc18; }
+.topbar__btn.is-active .topbar__dot { box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.75); }
+
+/* Foco visível para teclado */
+.topbar__btn:focus-visible,
+.topbar__seg-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
-.topbar__hunt:hover {
-  background-color: color-mix(in srgb, var(--accent) 50%, transparent);
-  color: var(--bg);
+
+.topbar__seg-btn--icone {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 7px;
 }
-.topbar__add:disabled { background: var(--panel-2); color: var(--muted); cursor: not-allowed; }
+.topbar__seg-btn--icone svg { display: block; }
+.topbar__seg-btn { min-width: 22px; }

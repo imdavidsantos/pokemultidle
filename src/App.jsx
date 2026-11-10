@@ -24,24 +24,26 @@ export default function App() {
   const [sniperOpen, setSniperOpen] = useState(false);
   const [twitchOpen, setTwitchOpen] = useState(false);
   const [kickOpen, setKickOpen] = useState(false);
+  const [telas, setTelas] = useState(Math.min(4, MAX_ACCOUNTS)); // quantas telas aparecem (2 / 3 / 4)
   const nomesPokemon = useNomesPokemon(sniperOpen);
 
-  // Foco numa tela (botão ⤢ de cada tela) continua valendo sobre o layout escolhido
+  // Foco numa tela (botão ⤢ de cada tela)
   const focusing = focusedSlot !== null && accounts.some((a) => a.slot === focusedSlot);
   const count = accounts.length;
+  const colunas = layout === 'colunas'; // qualquer outro valor (ex.: '1x1' antigo) cai na grade
 
-  // 2x2 = todas as telas | 1x1 = só 2 telas (as 2 primeiras)
-  const layoutSlots = layout === '1x1' ? accounts.slice(0, 2) : accounts;
+  // Só as N primeiras contas entram no layout
+  const layoutSlots = accounts.slice(0, telas);
   const visibleSlots = focusing ? [accounts.find((a) => a.slot === focusedSlot)] : layoutSlots;
   const visibleCount = visibleSlots.length;
 
   const isVisible = (slot) => visibleSlots.some((a) => a.slot === slot);
-  const showEmptySlot = !focusing && count < MAX_ACCOUNTS && (layout === '2x2' || visibleCount < 2);
+  const showEmptySlot = !focusing && visibleCount < telas && count < MAX_ACCOUNTS;
 
   // O quadro "Adicionar conta" também ocupa uma célula da grade
   const totalTiles = visibleCount + (showEmptySlot ? 1 : 0);
-  const cols = totalTiles === 1 ? 1 : 2;
-  const rows = totalTiles <= 2 ? 1 : 2;
+  const cols = colunas ? totalTiles : (totalTiles === 1 ? 1 : 2);
+  const rows = colunas ? 1 : (totalTiles <= 2 ? 1 : 2);
 
   useEffect(() => {
     if (!focusing) return undefined;
@@ -55,6 +57,11 @@ export default function App() {
     setFocus(null); // sai do foco e mostra o layout escolhido
   };
 
+  const chooseTelas = (n) => {
+    setTelas(n);
+    setFocus(null);
+  };
+
   return (
     <div className="app">
       <TopBar
@@ -62,6 +69,8 @@ export default function App() {
         layout={layout}
         focusedSlot={focusing ? focusedSlot : null}
         onLayout={chooseLayout}
+        telas={telas}
+        onTelas={chooseTelas}
         onAdd={addAccount}
         huntOpen={huntOpen}
         onToggleHunt={() => setHuntOpen((o) => !o)}
@@ -92,7 +101,7 @@ export default function App() {
         {showEmptySlot && (
           <EmptySlot
             onAdd={addAccount}
-            style={totalTiles === 3 ? { gridColumn: '1 / -1' } : undefined} // com 2 contas, ocupa a linha de baixo inteira
+            style={!colunas && totalTiles === 3 ? { gridColumn: '1 / -1' } : undefined} // na grade com 2 contas, ocupa a linha de baixo inteira
           />
         )}
       </main>
