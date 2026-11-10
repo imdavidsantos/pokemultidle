@@ -411,3 +411,91 @@ input.sniper__input[type='number']::-webkit-inner-spin-button { -webkit-appearan
   .sniper--centro .sniper__area-regras,
   .sniper--centro .sniper__area-extra { overflow: visible; padding-right: 0; }
 }
+
+/* ---------- Cards de regras (RuleCard) ---------- */
+.sniper__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+/* Editor aberto (nova regra ou regra clicada): ocupa a linha inteira */
+.sniper__editor {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+}
+.sniper__editor--novo .sniper__regra { border-left-color: var(--sn-ok); }
+.sniper__editor-acoes { display: flex; justify-content: flex-end; gap: 8px; }
+.sniper__editor .sniper__regra { margin-bottom: 0; }
+
+.rcard {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 10px 8px 8px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--sn-radius);
+  cursor: pointer;
+  text-align: center;
+  transition: border-color .12s, transform .12s, opacity .12s;
+}
+.rcard:hover { border-color: var(--accent); transform: translateY(-1px); }
+.rcard:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.rcard.is-off { border-style: dashed; }
+/* Pausada: escurece só o conteúdo, a bolinha continua nítida para reativar */
+.rcard.is-off .rcard__img,
+.rcard.is-off .rcard__nome,
+.rcard.is-off .rcard__preco,
+.rcard.is-off .rcard__rodape { opacity: 0.4; filter: grayscale(1); }
+
+.rcard__pausada {
+  position: absolute; top: 6px; right: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  font-size: 10px; font-weight: 600;
+  color: var(--muted);
+}
+
+/* Seletor mais específico para vencer ".sniper input[type='checkbox']" (position: relative) */
+.sniper .rcard input.rcard__toggle { position: absolute; top: 6px; left: 6px; width: 20px; height: 20px; z-index: 1; }
+
+.rcard__img {
+  width: 56px; height: 56px;
+  display: grid; place-items: center;
+  border-radius: 8px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+.rcard__img img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+.rcard__img span { font-size: 22px; font-weight: 700; color: var(--muted); }
+
+.rcard__nome {
+  width: 100%;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rcard__preco { display: grid; gap: 2px; width: 100%; font-variant-numeric: tabular-nums; }
+.rcard__linha { display: flex; justify-content: space-between; gap: 6px; font-size: 12px; }
+.rcard__linha small { color: var(--muted); font-size: 11px; }
+
+.rcard__rodape { display: grid; gap: 3px; justify-items: center; width: 100%; }
+.rcard__chip {
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+}
+.rcard__chip--inf { border-color: var(--sn-warn); color: var(--sn-warn); }
+.rcard__comp { font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }

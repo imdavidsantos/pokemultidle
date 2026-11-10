@@ -7,6 +7,7 @@ import GlobalRules from './components/GlobalRules';
 import RulesShare from './components/RulesShare';
 import SniperDiag from './components/SniperDiag';
 import SniperLog from './components/SniperLog';
+import RuleCard from './components/RuleCard';
 import RuleRow from './components/RuleRow';
 import './SniperPanel.css';
 
@@ -22,8 +23,17 @@ const MODO_TXT = {
   real: 'Ligado: compra tudo que bater com as regras.',
 };
 
+const regraVazia = () => ({
+  id: `r${Date.now()}`, active: true, tipo: 'item', alvoNome: '', maxOuro: 0, maxGemas: 0, maxQtd: 1, infinito: false, comprados: 0,
+});
+
 export default function SniperPanel({ accounts, nomesPokemon = [], onClose }) {
   const [slot, setSlot] = useState(accounts[0]?.slot);
+  // Regra aberta para edição completa (null = todas fechadas, só os cards)
+  const [editandoId, setEditandoId] = useState(null);
+  // Regra nova ainda não salva: só entra na lista quando clicar em "Adicionar"
+  const [rascunho, setRascunho] = useState(null);
+
   // Painel grande no meio da tela. Lembra a última escolha entre aberturas.
   const [centro, setCentro] = useState(() => {
     try { return localStorage.getItem(CHAVE_CENTRO) === '1'; } catch { return false; }
@@ -67,11 +77,32 @@ export default function SniperPanel({ accounts, nomesPokemon = [], onClose }) {
     { id: 'real', label: 'Ligado' },
   ];
 
-  const novaRegra = () => mudar({
-    rules: [...cfg.rules, { id: `r${Date.now()}`, active: true, tipo: 'item', alvoNome: '', maxOuro: 0, maxGemas: 0, maxQtd: 1, infinito: false, comprados: 0 }],
-  });
+  const trocarConta = (novoSlot) => {
+    setSlot(novoSlot);
+    setEditandoId(null);
+    setRascunho(null);
+  };
+
+  // Nova regra: abre o editor vazio no topo; só salva ao confirmar
+  const novaRegra = () => {
+    setEditandoId(null);
+    setRascunho(regraVazia());
+  };
+  const confirmarRascunho = () => {
+    if (!rascunho?.alvoNome?.trim()) return;
+    mudar({ rules: [...cfg.rules, rascunho] });
+    setRascunho(null);
+  };
+
   const editarRegra = (id, patch) => mudar({ rules: cfg.rules.map((r) => (r.id === id ? { ...r, ...patch } : r)) });
-  const removerRegra = (id) => mudar({ rules: cfg.rules.filter((r) => r.id !== id) });
+  const removerRegra = (id) => {
+    mudar({ rules: cfg.rules.filter((r) => r.id !== id) });
+    setEditandoId((atual) => (atual === id ? null : atual));
+  };
+  const abrirRegra = (id) => {
+    setRascunho(null);
+    setEditandoId((atual) => (atual === id ? null : id));
+  };
 
   const saldo = status.saldo;
 
@@ -109,7 +140,7 @@ export default function SniperPanel({ accounts, nomesPokemon = [], onClose }) {
                 role="tab"
                 aria-selected={a.slot === slotAtual}
                 className={`sniper__aba ${a.slot === slotAtual ? 'is-active' : ''}`}
-                onClick={() => setSlot(a.slot)}
+                onClick={() => trocarConta(a.slot)}
               >
                 {a.name}
               </button>
@@ -167,19 +198,62 @@ export default function SniperPanel({ accounts, nomesPokemon = [], onClose }) {
                   Regras por alvo
                   <span className="sniper__contador">{cfg.rules.length}</span>
                 </h3>
-                <button className="sniper__btn sniper__btn--primario" onClick={novaRegra}>+ Adicionar regra</button>
+                <button className="sniper__btn sniper__btn--primario" onClick={novaRegra} disabled={!!rascunho}>+ Adicionar regra</button>
               </div>
-              {cfg.rules.length === 0 && <p className="sniper__vazio">Nenhuma regra ainda. Clique em “Adicionar regra” para escolher o que comprar.</p>}
-              {cfg.rules.map((r) => (
-                <RuleRow
-                  key={r.id}
-                  regra={r}
-                  scan={status.varredura?.[r.id]}
-                  ligado={cfg.enabled}
-                  onChange={(p) => editarRegra(r.id, p)}
-                  onRemove={() => removerRegra(r.id)}
-                />
-              ))}
+
+              {cfg.rules.length === 0 && !rascunho && (
+                <p className="sniper__vazio">Nenhuma regra ainda. Clique em “Adicionar regra” para escolher o que comprar.</p>
+              )}
+
+              <div className="sniper__cards">
+                {/* Regra nova: aparece só enquanto está sendo criada */}
+                {rascunho && (
+                  <div className="sniper__editor sniper__editor--novo">
+                    <RuleRow
+                      regra={rascunho}
+                      ligado={false}
+                      onChange={(p) => setRascunho((r) => ({ ...r, ...p }))}
+                      onRemove={() => setRascunho(null)}
+                    />
+                    <div className="sniper__editor-acoes">
+                      <button className="sniper__btn" onClick={() => setRascunho(null)}>Cancelar</button>
+                      <button
+                        className="sniper__btn sniper__btn--primario"
+                        onClick={confirmarRascunho}
+                        disabled={!rascunho.alvoNome?.trim()}
+                      >
+                        Adicionar
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {cfg.rules.map((r) => (
+                  r.id === editandoId
+                    ? (
+                      <div className="sniper__editor" key={r.id}>
+                        <RuleRow
+                          regra={r}
+                          scan={status.varredura?.[r.id]}
+                          ligado={cfg.enabled}
+                          onChange={(p) => editarRegra(r.id, p)}
+                          onRemove={() => removerRegra(r.id)}
+                        />
+                        <div className="sniper__editor-acoes">
+                          <button className="sniper__btn sniper__btn--primario" onClick={() => setEditandoId(null)}>Concluir</button>
+                        </div>
+                      </div>
+                    )
+                    : (
+                      <RuleCard
+                        key={r.id}
+                        regra={r}
+                        onOpen={() => abrirRegra(r.id)}
+                        onToggle={(active) => editarRegra(r.id, { active })}
+                      />
+                    )
+                ))}
+              </div>
             </section>
 
             <div className="sniper__area-extra">
