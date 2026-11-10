@@ -4,7 +4,7 @@
   right: 4px;
   z-index: 50;
   width: min(620px, calc(100vw));
-  max-height: calc(100vh - 56px);
+  max-height: calc(100vh - 36px);
   display: flex;
   flex-direction: column;
   background: var(--panel);

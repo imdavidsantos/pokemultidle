@@ -1,12 +1,12 @@
 :root {
-  --bg: #12141c;
-  --panel: #1b1e2b;
-  --panel-2: #252a3b;
-  --line: #333a52;
-  --text: #e8eaf2;
-  --muted: #8d95b0;
-  --accent: #ffcb05;
-  --accent-ink: #2a2200;
+  --bg: #000000;
+  --panel: #0a0a0d;
+  --panel-2: #14121a;
+  --line: #2e2547;
+  --text: #ece8f6;
+  --muted: #9a8fb8;
+  --accent: #a855f7;
+  --accent-ink: #14041f;
   --danger: #ef5350;
   font-family: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', sans-serif;
   color: var(--text);
