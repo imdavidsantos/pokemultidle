@@ -17,7 +17,7 @@ const VER_DESEMPENHO = false;   // só vale no npm run dev; sempre mudar quando 
 
 // <webview>: só pode abrir os sites que o app usa e só o jogo recebe o preload do app
 const ORIGEM_JOGO = 'https://pokeidle.io';
-const ORIGENS_WEBVIEW = [ORIGEM_JOGO, 'https://pokeidle-gg.pages.dev'];
+const ORIGENS_WEBVIEW = [ORIGEM_JOGO, 'https://pokeidleguide.io'];
 const PRELOAD_JOGO = path.resolve(__dirname, 'webview-preload.js');
 const ehPreloadDoJogo = (v) => {
   if (!v) return false;
