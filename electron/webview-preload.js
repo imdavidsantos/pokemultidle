@@ -278,6 +278,80 @@ function dentroDaPagina() {
     if (mudou) agendarInventario();
   }
 
+  // ---------- painel RMT (leitura do mercado) ----------
+  // O app (painel RMT) manda pedidos de LEITURA; aqui só deixamos passar os 3 que o próprio jogo usa para mostrar o mercado.
+  // Enquanto chegarem pedidos (o painel pede a cada 3 s), as respostas também seguem para o app; fechou o painel, para sozinho.
+  const PEDIDOS_RMT = { 'market.itens': 1, 'market.item': 1, 'market.especies': 1, 'market.listar': 1 };
+  let rmtUltimoPedido = 0;
+  function pedirMercado(msg) {
+    if (!msg || typeof msg !== 'object' || !PEDIDOS_RMT[msg.t]) return;
+    rmtUltimoPedido = Date.now();
+    enviar(msg);
+  }
+  const rmtAtivo = () => Date.now() - rmtUltimoPedido < 10000;
+  // resumo por espécie: acha a lista (array de objetos com speciesId) em qualquer campo do pacote
+  function acharEspecies(p) {
+    const candidatos = [p];
+    for (const k of Object.keys(p)) if (p[k] && typeof p[k] === 'object' && !Array.isArray(p[k])) candidatos.push(p[k]);
+    for (const obj of candidatos) {
+      for (const k of Object.keys(obj)) {
+        const v = obj[k];
+        if (Array.isArray(v) && v.length && v[0] && typeof v[0] === 'object' && v[0].speciesId != null) return v;
+      }
+    }
+    return null;
+  }
+  // Anúncio de Pokémon: achata os campos (ficha.nome, ficha.level…) para o app mostrar sem depender de um formato fixo
+  function achatar(obj, prefixo, prof, saida) {
+    if (!obj || typeof obj !== 'object') return saida;
+    for (const k of Object.keys(obj)) {
+      if (Object.keys(saida).length >= 70) break;
+      const v = obj[k];
+      const chave = prefixo ? prefixo + '.' + k : k;
+      if (v === null || v === undefined) continue;
+      if (Array.isArray(v)) { if (v.length <= 8 && v.every((x) => x === null || typeof x !== 'object')) saida[chave] = v.join(', '); }
+      else if (typeof v === 'object') { if (prof < 2) achatar(v, chave, prof + 1, saida); }
+      else saida[chave] = v;
+    }
+    return saida;
+  }
+  function encaminharMercado(p) {
+    const aba = String(p.aba || '');
+    if (aba === 'itens' && p.resumo) {
+      emitir('mercadoItens', { resumo: p.resumo });
+    } else if (aba === 'item' && Array.isArray(p.linhas)) {
+      const linhas = p.linhas.slice(0, 200).map((l) => ({
+        id: l.id, vendedor: l.vendedor, qtd: l.qtd, preco: l.preco, moeda: l.moeda, estado: l.estado, compravelEm: l.compravelEm,
+        ficha: l.ficha ? { nome: l.ficha.nome, icone: l.ficha.icone, casaId: l.ficha.casaId, numero: l.ficha.numero, casaRaridade: l.ficha.casaRaridade, categoria: l.ficha.categoria } : null,
+      }));
+      emitir('mercadoOfertas', { itemId: Number(p.itemId) || 0, moeda: String(p.moeda || ''), linhas });
+    } else if (aba === 'especies') {
+      // lista vazia (filtro sem resultado) também é resposta: sem isso o painel ficava em "Carregando" para sempre
+      const lista = acharEspecies(p) || [];
+      {
+        emitir('mercadoEspecies', {
+          moeda: String(p.moeda || ''),
+          lista: lista.map((e) => ({
+            speciesId: e.speciesId, nome: e.nome, anuncios: e.anuncios, shinys: e.shinys, minGold: e.minGold, minOrb: e.minOrb,
+            temP5: !!e.temP5, temTmElemental: !!e.temTmElemental, temTmAoe: !!e.temTmAoe, tipos: Array.isArray(e.tipos) ? e.tipos : [],
+          })),
+        });
+      }
+    } else if (!aba.startsWith('historico') && aba !== 'meus' && aba !== 'cancelado') {
+      // lista de anúncios de Pokémon (resposta do market.listar)
+      const bruto = [].concat(Array.isArray(p.anuncios) ? p.anuncios : [], Array.isArray(p.linhas) ? p.linhas : []);
+      if (bruto.length || Array.isArray(p.linhas)) {
+        emitir('mercadoPokemons', {
+          moeda: String(p.moeda || ''),
+          linhas: bruto.slice(0, 150).map((l) => ({
+            id: l.id, vendedor: l.vendedor, preco: l.preco, moeda: l.moeda, qtd: l.qtd, compravelEm: l.compravelEm,
+            campos: achatar(l, '', 0, {}),
+          })),
+        });
+      }
+    }
+  }
+
   function processar(p) {
     if (pedidosLoja.length) tentarResponderLoja(p);
     if (p.servidorAgora) desvio = Date.now() - Number(p.servidorAgora);
@@ -327,6 +401,13 @@ function dentroDaPagina() {
 
     if (p.t === 'welcome') {
       aprenderNomesInventario(p);
+      if (p.mercado && Array.isArray(p.mercado.catalogo)) {   // catálogo do mercado (nome, ícone, categoria) para o painel RMT
+        emitir('mercadoCatalogo', {
+          itens: p.mercado.catalogo
+            .filter((i) => i && i.id != null && (i.nome || i.name))
+            .map((i) => ({ id: i.id, nome: String(i.nome || i.name), icone: i.icone ? urlAbsoluta(i.icone) : null, categoria: String(i.categoria || '') })),
+        });
+      }
       aprender(p.itensNossos, false);
       aprender(p.mercado && p.mercado.catalogo, false);
       carregarCatalogoBase();
@@ -339,13 +420,16 @@ function dentroDaPagina() {
       }
     }
 
-    if (p.t === 'market') tratarMercado(p);
+    if (p.t === 'market') {
+      if (rmtAtivo()) encaminharMercado(p);
+      tratarMercado(p);
+    }
   }
 
   // ---------- mercado ----------
   function tratarMercado(p) {
     const aba = String(p.aba || '');
-    if (aba.startsWith('historico') || aba === 'meus' || aba === 'cancelado' || p.cancelado) return;
+    if (aba.startsWith('historico') || aba === 'meus' || aba === 'cancelado' || aba === 'especies' || p.cancelado) return;
 
     if (aba === 'itens' && p.resumo) { decidirItens(p.resumo); return; }
 
@@ -613,6 +697,7 @@ function dentroDaPagina() {
     const d = e.data;
     if (d && d.source === 'PM_APP' && d.tipo === 'config') aplicarConfig(d.cfg);
     if (d && d.source === 'PM_APP' && d.tipo === 'loja') comprarLoja(d);
+    if (d && d.source === 'PM_APP' && d.tipo === 'mercado' && d.acao === 'pedir') pedirMercado(d.msg);
   });
 
   // ---------- ícones vistos na tela do jogo ----------
@@ -673,6 +758,9 @@ function instalarGameTap() {
   });
   ipcRenderer.on('pm-loja', (_e, pedido) => {                     // app React -> página: compra na loja
     window.postMessage({ source: 'PM_APP', tipo: 'loja', ...pedido }, '*');
+  });
+  ipcRenderer.on('pm-mercado', (_e, pedido) => {                  // app React -> página: leitura do mercado (painel RMT)
+    window.postMessage({ source: 'PM_APP', tipo: 'mercado', ...pedido }, '*');
   });
 
   // 2) avisa o app que o preload carregou (o app responde mandando a config)

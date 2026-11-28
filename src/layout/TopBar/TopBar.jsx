@@ -49,6 +49,7 @@ export default function TopBar({
   telas, onTelas,
   huntOpen, onToggleHunt,
   sniperOpen, onToggleSniper,
+  rmtOpen, onToggleRmt,
   twitchOpen, onToggleTwitch,
   kickOpen, onToggleKick,
 }) {
@@ -96,6 +97,7 @@ export default function TopBar({
         <div className="topbar__paineis">
           <BotaoPainel aberto={huntOpen} onClick={onToggleHunt} titulo="Abrir o simulador de hunt">Hunt</BotaoPainel>
           <BotaoPainel aberto={sniperOpen} onClick={onToggleSniper} titulo="Configurar a compra automática">Sniper</BotaoPainel>
+          <BotaoPainel aberto={rmtOpen} onClick={onToggleRmt} titulo="RMT: ver o mercado da comunidade (só leitura)">RMT</BotaoPainel>
           <BotaoPainel aberto={twitchOpen} onClick={onToggleTwitch} marca="twitch" titulo="Twitch Presence: presença nas lives das contas">Twitch</BotaoPainel>
           <BotaoPainel aberto={kickOpen} onClick={onToggleKick} marca="kick" titulo="Kick Presence: presença nas lives das contas">Kick</BotaoPainel>
         </div>

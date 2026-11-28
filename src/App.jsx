@@ -12,6 +12,7 @@ import './App.css';
 const ValePanel = lazy(() => import('./features/vale/ValePanel.jsx')); // não está sendo usado por enquanto
 // Painéis só são carregados quando abertos (menos JS na abertura do app)
 const SniperPanel = lazy(() => import('./features/sniper/SniperPanel/SniperPanel.jsx'));
+const MercadoPanel = lazy(() => import('./features/mercado/MercadoPanel/MercadoPanel.jsx'));
 const TwitchPanel = lazy(() => import('./features/stream/panels/TwitchPanel/TwitchPanel.jsx'));
 const KickPanel = lazy(() => import('./features/stream/panels/KickPanel/KickPanel.jsx'));
 const HuntSim = lazy(() => import('./features/hunt/HuntSim/HuntSim.jsx'));
@@ -22,6 +23,7 @@ export default function App() {
   useKickAutoStart(accounts);
   const [huntOpen, setHuntOpen] = useState(false);
   const [sniperOpen, setSniperOpen] = useState(false);
+  const [rmtOpen, setRmtOpen] = useState(false);
   const [twitchOpen, setTwitchOpen] = useState(false);
   const [kickOpen, setKickOpen] = useState(false);
   const [telas, setTelas] = useState(Math.min(4, MAX_ACCOUNTS)); // quantas telas aparecem (2 / 3 / 4)
@@ -73,13 +75,15 @@ export default function App() {
         onTelas={chooseTelas}
         onAdd={addAccount}
         huntOpen={huntOpen}
-        onToggleHunt={() => setHuntOpen((o) => !o)}
+        onToggleHunt={() => { setHuntOpen((o) => !o); setRmtOpen(false); }}
         sniperOpen={sniperOpen}
-        onToggleSniper={() => { setSniperOpen((v) => !v); setHuntOpen(false); setTwitchOpen(false); setKickOpen(false); }}
+        onToggleSniper={() => { setSniperOpen((v) => !v); setHuntOpen(false); setTwitchOpen(false); setKickOpen(false); setRmtOpen(false); }}
+        rmtOpen={rmtOpen}
+        onToggleRmt={() => { setRmtOpen((v) => !v); setHuntOpen(false); setSniperOpen(false); setTwitchOpen(false); setKickOpen(false); }}
         twitchOpen={twitchOpen}
-        onToggleTwitch={() => { setTwitchOpen((v) => !v); setHuntOpen(false); setSniperOpen(false); setKickOpen(false); }}
+        onToggleTwitch={() => { setTwitchOpen((v) => !v); setHuntOpen(false); setSniperOpen(false); setKickOpen(false); setRmtOpen(false); }}
         kickOpen={kickOpen}
-        onToggleKick={() => { setKickOpen((v) => !v); setHuntOpen(false); setSniperOpen(false); setTwitchOpen(false); }}
+        onToggleKick={() => { setKickOpen((v) => !v); setHuntOpen(false); setSniperOpen(false); setTwitchOpen(false); setRmtOpen(false); }}
       />
 
       <main
@@ -109,6 +113,7 @@ export default function App() {
         {huntOpen && <HuntSim onClose={() => setHuntOpen(false)} />}
         {twitchOpen && <TwitchPanel accounts={accounts} onClose={() => setTwitchOpen(false)} />}
         {kickOpen && <KickPanel accounts={accounts} onClose={() => setKickOpen(false)} />}
+        {rmtOpen && <MercadoPanel accounts={accounts} onClose={() => setRmtOpen(false)} />}
         {sniperOpen && <SniperPanel accounts={accounts} nomesPokemon={nomesPokemon} onClose={() => setSniperOpen(false)} />}
       </Suspense>
     </div>
