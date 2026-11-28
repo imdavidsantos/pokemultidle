@@ -147,6 +147,19 @@
 .merc__contagem { font-size: 12px; color: var(--muted); }
 .merc__ordem { display: flex; align-items: center; gap: 8px; margin-left: auto; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .merc__ordem .sniper__input { text-transform: none; letter-spacing: 0; font-weight: 600; }
+.merc__ordenacao { display: flex; align-items: center; gap: 14px; margin-left: auto; }
+
+/* "Filtrar por": menu de critérios com prioridade numerada */
+.merc__filtrar { position: relative; display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.merc__filtrar-btn { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; text-align: left; text-transform: none; letter-spacing: 0; font-weight: 600; color: var(--text); }
+.merc__filtrar-btn.is-on { border-color: var(--accent); }
+.merc__filtrar-qtd { min-width: 18px; padding: 0 5px; border-radius: 9px; background: var(--accent); color: #fff; font-size: 11px; text-align: center; }
+.merc__filtrar-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; width: 340px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); box-shadow: 0 8px 24px rgba(0, 0, 0, .5); text-transform: none; letter-spacing: 0; font-weight: 400; }
+.merc__filtrar-menu p { margin: 0 0 8px; font-size: 11px; line-height: 1.4; color: var(--muted); }
+.merc__filtrar-grade { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px; }
+.merc__crit { display: flex; align-items: center; justify-content: center; gap: 6px; text-align: center; }
+.merc__crit-n { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 10px; font-weight: 800; }
+.merc__filtrar-limpar { width: 100%; }
 
 /* card de espécie clicável */
 .merc__card--clicavel { cursor: pointer; transition: border-color .12s, transform .12s; }

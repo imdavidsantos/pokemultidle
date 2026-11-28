@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import useDismiss from '../../../shared/hooks/useDismiss';
 import { useSniperStatus } from '../../sniper/sniperStore';
 import { pedirMercado, useMercado, useMercadoTodos } from '../mercadoStore';
 import {
-  BANDAS_NOTA, ORDENS, pedidoDeOrdem, corPotencia, TIPOS_POKEMON, buscar, buscarSufixo, categoriasDoCatalogo, faixaNota, fmtDecimal, fmtGemas, fmtOuro, fmtPreco, norm, rotuloCategoria, rotuloItem,
+  BANDAS_NOTA, CRITERIOS, ORDENS, corPotencia, TIPOS_POKEMON, buscar, buscarSufixo, categoriasDoCatalogo, faixaNota, fmtDecimal, fmtGemas, fmtOuro, fmtPreco, norm, rotuloCategoria, rotuloItem,
   textoIdade, textoLiberacao, urlIcone, vivo,
 } from '../mercadoUtils';
 import '../../sniper/SniperPanel/SniperPanel.css';   // mesma aparência do Sniper (moldura, abas, botões, inputs)
@@ -143,6 +144,43 @@ function LinhaPokemon({ l, moeda, agora }) {
   );
 }
 
+// "Filtrar por": escolhe vários critérios de ordenação; o número no botão é a prioridade (ordem dos cliques)
+function FiltrarPor({ valor, onChange }) {
+  const [aberto, setAberto] = useState(false);
+  const ref = useRef(null);
+  const fechar = useCallback(() => setAberto(false), []);
+  useDismiss(ref, aberto, fechar);
+  const alternar = (id) => onChange(valor.includes(id) ? valor.filter((x) => x !== id) : [...valor, id]);
+  const primeiro = CRITERIOS.find((c) => c.id === valor[0]);
+  return (
+    <div className="merc__filtrar" ref={ref}>
+      <span>Filtrar por</span>
+      <button type="button" className={`sniper__input merc__filtrar-btn ${valor.length ? 'is-on' : ''}`} aria-expanded={aberto} onClick={() => setAberto((a) => !a)}>
+        <span>{primeiro ? primeiro.rotulo : 'Nenhum'}</span>
+        {valor.length > 0 && <b className="merc__filtrar-qtd">{valor.length}</b>}
+        <span aria-hidden="true">{aberto ? '▴' : '▾'}</span>
+      </button>
+      {aberto && (
+        <div className="merc__filtrar-menu">
+          <p>Escolha quantos quiser — o número diz a prioridade, na ordem em que você clicou. O “Ordenar por” desempata o resto (é assim que sai “P5 mais barato”).</p>
+          <div className="merc__filtrar-grade">
+            {CRITERIOS.map((c) => {
+              const pos = valor.indexOf(c.id);
+              return (
+                <button key={c.id} type="button" aria-pressed={pos >= 0} className={`merc__filtro merc__crit ${pos >= 0 ? 'is-on' : ''}`} onClick={() => alternar(c.id)}>
+                  {pos >= 0 && <span className="merc__crit-n">{pos + 1}</span>}
+                  {c.rotulo}
+                </button>
+              );
+            })}
+          </div>
+          <button type="button" className="sniper__btn merc__filtrar-limpar" disabled={!valor.length} onClick={() => onChange([])}>limpar critérios</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Ofertas({ oferta, dados, desde, agora, onTrocarMoeda, onVoltar }) {
   const linhas = dados && dados.itemId === oferta.itemId && dados.em >= desde ? dados.linhas : null;
   return (
@@ -193,6 +231,7 @@ export default function MercadoPanel({ accounts, onClose }) {
   const [elementos, setElementos] = useState([]);            // tipos escolhidos
   const [nivel, setNivel] = useState({ min: '', max: '' });
   const [ordem, setOrdem] = useState('recentes');
+  const [criterios, setCriterios] = useState([]);           // "Filtrar por": ids na ordem de prioridade (ex.: ['iv'])
   const [agregar, setAgregar] = useState(true);              // agrupar por espécie (desligado = lista de anúncios)
   const [especie, setEspecie] = useState(null);              // { speciesId, nome } aberta em "Ver anúncios"
   const [oferta, setOferta] = useState(null);          // { itemId, nome, icone, moeda } | null
@@ -232,7 +271,7 @@ export default function MercadoPanel({ accounts, onClose }) {
 
   // Leitura: ao abrir/mudar de filtro pede na hora e depois a cada 3 s, só enquanto este painel estiver aberto.
   const chaveCats = categorias.join('|');
-  const chaveFiltros = JSON.stringify([filtros, elementos, nivelAplicado, ordem, agregar, especie?.speciesId ?? null, agregar && !especie ? '' : buscaAplicada]);
+  const chaveFiltros = JSON.stringify([filtros, elementos, nivelAplicado, ordem, criterios, agregar, especie?.speciesId ?? null, agregar && !especie ? '' : buscaAplicada]);
   useEffect(() => {
     if (!slotAtual || !conectado) return undefined;
     const timers = [];
@@ -245,11 +284,11 @@ export default function MercadoPanel({ accounts, onClose }) {
         if (especie || !agregar) {
           // anúncios de verdade (mesmo pedido que o sniper usa), acrescido dos filtros
           pedirMercado(slotAtual, {
-            ...f, t: 'market.listar', tipo: 'pokemon', ...pedidoDeOrdem(ordem), moeda: moedaPoke, elemento: elementos[0] || '',
+            ...f, t: 'market.listar', tipo: 'pokemon', ordem, criterios, moeda: moedaPoke, elemento: elementos[0] || '',
             busca: especie ? especie.nome : buscaAplicada, speciesId: especie ? especie.speciesId : undefined,
           });
         } else {
-          pedirMercado(slotAtual, { ...PEDIDO_ESPECIES, ...f, ...pedidoDeOrdem(ordem), moeda: moedaPoke });
+          pedirMercado(slotAtual, { ...PEDIDO_ESPECIES, ...f, ordem, criterios, moeda: moedaPoke });
         }
       } else {
         const lista = categoria ? [categoria] : (categorias.length ? categorias : ['']);
@@ -300,11 +339,12 @@ export default function MercadoPanel({ accounts, onClose }) {
       }
       return true;
     });
-    // O servidor já ordena ('caros' / 'baratos' / criterios ['iv']); reordenar o preço aqui é só uma garantia.
+    // O servidor já ordena; reordenar o preço aqui é só uma garantia (e só quando não há critérios, que têm prioridade).
+    if (criterios.length) return lista;
     if (ordem === 'caros') return [...lista].sort((a, b) => (Number(b.preco) || 0) - (Number(a.preco) || 0));
     if (ordem === 'baratos') return [...lista].sort((a, b) => (Number(a.preco) || 0) - (Number(b.preco) || 0));
     return lista;
-  }, [merc.pokemons, desde, busca, especie, nivelAplicado, ordem, agora]);
+  }, [merc.pokemons, desde, busca, especie, nivelAplicado, ordem, criterios, agora]);
 
   const ultimaAtualizacao = oferta ? merc.ofertas?.em : tipo === 'pokemon' ? (mostraAnuncios ? merc.pokemons?.em : merc.especies?.em)
     : Math.max(0, ...itens.map((i) => i.lin?.em || 0)) || null;
@@ -312,7 +352,7 @@ export default function MercadoPanel({ accounts, onClose }) {
   const escolherTipo = (t) => { setTipo(t); setOferta(null); setEspecie(null); setCategoria(''); };
   const limparFiltros = () => {
     setCategoria(''); setBusca(''); setOcultar(true); setOferta(null); setEspecie(null);
-    setFiltros(FILTROS_PADRAO); setElementos([]); setNivel({ min: '', max: '' }); setOrdem('recentes'); setAgregar(true);
+    setFiltros(FILTROS_PADRAO); setElementos([]); setNivel({ min: '', max: '' }); setOrdem('recentes'); setCriterios([]); setAgregar(true);
   };
   const alternar = (k) => setFiltros((f) => ({ ...f, [k]: !f[k] }));
   const alternarTipo = (t) => setElementos((l) => (l.includes(t) ? l.filter((x) => x !== t) : [...l, t]));
@@ -426,12 +466,15 @@ export default function MercadoPanel({ accounts, onClose }) {
                         ? <button type="button" className="sniper__btn" onClick={() => setEspecie(null)}>← Voltar</button>
                         : <span className="merc__contagem">{mostraAnuncios ? (anuncios ? `${anuncios.length} anúncio(s)` : '') : (especies ? `${especies.length} espécie(s)` : '')}</span>}
                       {especie && <b className="merc__barra-nome">{especie.nome}</b>}
-                      <label className="merc__ordem">
-                        Ordenar por
-                        <select className="sniper__input" value={ordem} onChange={(e) => setOrdem(e.target.value)}>
-                          {ORDENS.map((o) => <option key={o.id} value={o.id}>{o.rotulo}</option>)}
-                        </select>
-                      </label>
+                      <div className="merc__ordenacao">
+                        <FiltrarPor valor={criterios} onChange={setCriterios} />
+                        <label className="merc__ordem">
+                          Ordenar por
+                          <select className="sniper__input" value={ordem} onChange={(e) => setOrdem(e.target.value)}>
+                            {ORDENS.map((o) => <option key={o.id} value={o.id}>{o.rotulo}</option>)}
+                          </select>
+                        </label>
+                      </div>
                     </div>
 
                     {mostraAnuncios ? (

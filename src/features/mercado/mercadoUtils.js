@@ -64,18 +64,31 @@ export function textoLiberacao(compravelEm, agora) {
 // ---- Pokémon ----
 export const TIPOS_POKEMON = ['NORMAL', 'FIRE', 'WATER', 'ELECTRIC', 'GRASS', 'ICE', 'FIGHTING', 'POISON', 'GROUND', 'FLYING', 'PSYCHIC', 'BUG', 'ROCK', 'GHOST', 'DRAGON', 'DARK', 'STEEL', 'FAIRY'];
 
-// `ordem` e `criterios` são exatamente o que o jogo envia (capturado do market do próprio jogo):
-//   mais caro -> ordem 'caros' | mais barato -> ordem 'baratos' | maior IV -> criterios ['iv'] (com ordem 'baratos' como desempate)
+// Valores de `ordem` que o jogo envia (capturados do market do próprio jogo): 'caros' = maior preço, 'baratos' = menor preço.
 export const ORDENS = [
-  { id: 'recentes', rotulo: 'Adicionados recentemente', ordem: 'recentes', criterios: [] },
-  { id: 'baratos', rotulo: 'Menor preço', ordem: 'baratos', criterios: [] },
-  { id: 'caros', rotulo: 'Maior preço', ordem: 'caros', criterios: [] },
-  { id: 'iv', rotulo: 'Maior IV', ordem: 'baratos', criterios: ['iv'] },
+  { id: 'recentes', rotulo: 'Adicionados recentemente' },
+  { id: 'baratos', rotulo: 'Menor preço' },
+  { id: 'caros', rotulo: 'Maior preço' },
 ];
-export const pedidoDeOrdem = (id) => {
-  const o = ORDENS.find((x) => x.id === id) || ORDENS[0];
-  return { ordem: o.ordem, criterios: o.criterios };
-};
+
+// "Filtrar por": vários critérios, a prioridade é a ordem em que foram clicados; o "Ordenar por" desempata.
+// Na ordem em que o jogo mostra (2 colunas). Só o id 'iv' (Maior IV Somado) foi confirmado por captura;
+// os outros seguem os nomes dos campos de filtro do próprio pedido (notaMin, qualidadeMin, ivHpMin…) — se algum não
+// ordenar, capture o pedido do jogo ao escolher aquele critério e corrija o id aqui.
+export const CRITERIOS = [
+  { id: 'nota', rotulo: 'Maior Nota Calculadora' },
+  { id: 'iv', rotulo: 'Maior IV Somado' },
+  { id: 'qualidade', rotulo: 'Maior Qualidade' },
+  { id: 'potencia', rotulo: 'Maior Potência' },
+  { id: 'nivel', rotulo: 'Maior nível' },
+  { id: 'refino', rotulo: 'Maior refino' },
+  { id: 'ivHp', rotulo: 'Maior IV HP' },
+  { id: 'ivAtk', rotulo: 'Maior IV ATK' },
+  { id: 'ivDef', rotulo: 'Maior IV DEF' },
+  { id: 'ivSpAtk', rotulo: 'Maior IV Sp.ATK' },
+  { id: 'ivSpDef', rotulo: 'Maior IV Sp.DEF' },
+  { id: 'ivSpd', rotulo: 'Maior IV SPD' },
+];
 
 // Os anúncios chegam com os campos achatados (ficha.nome, ficha.level…). Acha o primeiro que bate com algum dos nomes (último trecho da chave).
 export function buscar(campos, nomes) {
