@@ -3,6 +3,7 @@ import GameView from '../GameView/GameView.jsx';
 import PaneControls from '../PaneControls/PaneControls.jsx';
 import ErrorBoundary from '../../../shared/components/ErrorBoundary/ErrorBoundary.jsx';
 import { criarOnBuy } from '../../restock/utils/lojaSocket';
+import { listarDoSocket } from '../../restock/inventarioStore';
 import './AccountPane.css';
 
 export default function AccountPane({ account, hidden, focused, canRemove, onChange, onToggleFocus, onRemove }) {
@@ -37,7 +38,7 @@ export default function AccountPane({ account, hidden, focused, canRemove, onCha
           onRemove={handleRemove}
           onReload={() => gameRef.current?.reload()}
           onCopySheet={handleCopySheet}
-          onListItems={() => gameRef.current?.listItems()}
+          onListItems={() => listarDoSocket(account.slot) ?? gameRef.current?.listItems()}
           onBuyItem={onBuyItem}
           onSellDepot={() => gameRef.current.sellDepot()}
           onOpenRmt={(tipo) => gameRef.current.openRmt(tipo)}

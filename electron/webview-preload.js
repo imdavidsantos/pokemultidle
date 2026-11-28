@@ -198,7 +198,7 @@ function dentroDaPagina() {
   function carregarCatalogoBase() {
     if (baseCarregada || typeof fetch !== 'function') return;
     baseCarregada = true;
-    fetch('/assets/items.json').then((r) => r.json()).then((d) => aprender(d && d.items, false))
+    fetch('/assets/items.json').then((r) => r.json()).then((d) => { aprender(d && d.items, false); if (guardarNomes(d && d.items)) agendarInventario(); })
       .catch(() => { baseCarregada = false; });
   }
   function marcarNegociaveis(ids) {
@@ -210,12 +210,81 @@ function dentroDaPagina() {
     if (mudou) agendarCatalogo();
   }
 
+  // ---------- inventário do treinador (estado.items / estado.balls) ----------
+  // O jogo já manda a mochila nos pacotes "estado": o `welcome` traz tudo (estado.cheio) e os pacotes seguintes
+  // só o que mudou. Mantemos uma cópia aqui e avisamos o app; assim o reabastecimento lê o estoque em QUALQUER tela,
+  // sem abrir o cofre nem o market. Os nomes vêm de `itensNossos` e `catalogoBolas` (welcome); os ids de Revive/Potion
+  // vêm de estado.automation (reviveIds / potionIds).
+  const inv = { items: {}, balls: {} };
+  const nomesItens = {};      // id -> { nome, icone }
+  let bolasCat = null;        // catalogoBolas: [{ id, nome, priceGold, compravel, icone }]
+  let autoIds = null;         // { revive: [...], potion: [...] }
+  let autoStr = '';
+  let invTimer = 0;
+  function mesclar(alvo, src) {
+    if (!src || typeof src !== 'object' || Array.isArray(src)) return false;
+    let mudou = false;
+    for (const k of Object.keys(src)) {
+      const v = Number(src[k]);
+      if (isFinite(v) && alvo[k] !== v) { alvo[k] = v; mudou = true; }
+    }
+    return mudou;
+  }
+  function agendarInventario() {
+    clearTimeout(invTimer);
+    invTimer = setTimeout(() => {
+      const nomes = {};
+      for (const id of Object.keys(inv.items)) if (nomesItens[id]) nomes[id] = nomesItens[id];
+      emitir('inventario', { items: inv.items, balls: inv.balls, nomes, bolas: bolasCat, auto: autoIds });
+    }, 800);   // junta pacotes seguidos num aviso só
+  }
+  function lerInventario(est) {
+    if (est.cheio === true) { inv.items = {}; inv.balls = {}; }   // pacote completo: substitui em vez de mesclar
+    let mudou = mesclar(inv.items, est.items);
+    mudou = mesclar(inv.balls, est.balls) || mudou;
+    const a = est.automation;
+    if (a && typeof a === 'object') {
+      const novo = JSON.stringify([a.reviveIds, a.potionIds]);
+      if (novo !== autoStr) {
+        autoStr = novo;
+        autoIds = { revive: Array.isArray(a.reviveIds) ? a.reviveIds : [], potion: Array.isArray(a.potionIds) ? a.potionIds : [] };
+        mudou = true;
+      }
+    }
+    if (mudou) agendarInventario();
+  }
+  // lista de itens do jogo (itensNossos do welcome ou /assets/items.json): guarda nome e ícone de cada um
+  function guardarNomes(lista) {
+    if (!Array.isArray(lista)) return false;
+    let mudou = false;
+    for (const it of lista) {
+      const id = it && it.id;
+      const nome = it && (it.name || it.nome);
+      if (!id || !nome || String(nome).indexOf('Item #') === 0) continue;
+      const icone = acharIcone(it) || (nomesItens[id] && nomesItens[id].icone) || null;
+      const ant = nomesItens[id];
+      if (!ant || ant.nome !== String(nome) || ant.icone !== icone) { nomesItens[id] = { nome: String(nome), icone }; mudou = true; }
+    }
+    return mudou;
+  }
+  function aprenderNomesInventario(p) {
+    let mudou = guardarNomes(p.itensNossos);
+    if (Array.isArray(p.catalogoBolas)) {
+      bolasCat = p.catalogoBolas
+        .filter((b) => b && b.id != null)
+        .map((b) => ({ id: b.id, nome: String(b.nome || b.name || 'Ball #' + b.id), priceGold: Number(b.priceGold) || null, compravel: b.compravel === true, icone: b.icone ? urlAbsoluta(b.icone) : null }));
+      mudou = true;
+    }
+    if (mudou) agendarInventario();
+  }
+
   function processar(p) {
     if (pedidosLoja.length) tentarResponderLoja(p);
     if (p.servidorAgora) desvio = Date.now() - Number(p.servidorAgora);
     const est = p.estado || (p.payload && p.payload.estado) || (p.t === 'estado' ? p : null);
     if (est && est.servidorAgora) desvio = Date.now() - Number(est.servidorAgora);
 
+    if (est) lerInventario(est);
     const fonte = est || (typeof p.gold === 'number' ? p : null);
     if (fonte) {
       const ouro = numero(fonte.gold);
@@ -257,6 +326,7 @@ function dentroDaPagina() {
     }
 
     if (p.t === 'welcome') {
+      aprenderNomesInventario(p);
       aprender(p.itensNossos, false);
       aprender(p.mercado && p.mercado.catalogo, false);
       carregarCatalogoBase();

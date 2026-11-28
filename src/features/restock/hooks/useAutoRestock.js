@@ -39,14 +39,15 @@ function lerConfig(chave) {
 }
 
 // Item sem preço (preco == null, aparece "Preço: —" na loja) não dá para comprar.
-export const temPreco = (item) => item.preco != null && Number(item.preco) > 0;
+// (itens vindos do inventário do jogo trazem `compravel`; Revive/Potion compram mesmo sem preço conhecido)
+export const temPreco = (item) => (item.compravel !== undefined ? item.compravel : item.preco != null && Number(item.preco) > 0);
 
 // O auto só mexe em item comprado com ouro.
 const MOEDAS_OURO = ['ouro', 'gold', 'coin', 'coins'];
-const compraComOuro = (item) => temPreco(item) && MOEDAS_OURO.includes(String(item.moeda || '').toLowerCase());
+const compraComOuro = (item) => temPreco(item) && MOEDAS_OURO.includes(String(item.moeda || 'ouro').toLowerCase());
 
 const candidatos = (grupo, itens) => (itens || []).filter(
-  (i) => grupo.casa.test(String(i.nome || '')) && compraComOuro(i),
+  (i) => (i.grupo === grupo.id || grupo.casa.test(String(i.nome || ''))) && compraComOuro(i),
 );
 
 // Escolha manual -> usa ela. Automático -> o item cujo estoque mais caiu desde que o painel abriu
@@ -116,7 +117,7 @@ export default function useAutoRestock({ itens, erro, carregar, onBuy, chave = '
         const feito = await onBuyRef.current(alvo.id, qtd, { auto: true });
         if (feito === false) throw new Error('A compra foi recusada ou cancelada.');
         marcar(g.id, { situacao: 'ok', msg: `Comprou ${qtd.toLocaleString('pt-BR')} × ${alvo.nome}.` });
-        await pausa(400);               // dá tempo do jogo atualizar o inventário
+        await pausa(1500);              // dá tempo do jogo mandar o inventário novo
         await carregarRef.current();    // relê o estoque; isso dispara a próxima avaliação
       } catch (err) {
         console.warn('Auto-reabastecimento falhou:', err);

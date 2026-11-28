@@ -4,6 +4,7 @@ import { aplicarLimiteFps } from '../fpsLimit';
 import { registrarEvento, useSniperConfig, registrarEnviador } from '../../sniper/sniperStore';
 import { atualizarParceirosKick, definirAtualizadorParceirosKick } from '../../stream/adapters/kick';
 import { comprarItem, listarItens } from '../../restock/utils';
+import { registrarInventario } from '../../restock/inventarioStore';
 import { copiarFicha } from '../../vale/copiarFicha';
 import { REAPPLY_EVENTS } from '../zoom';
 import { abrirAnuncioRmt } from '../rmt';
@@ -146,6 +147,7 @@ const GameView = forwardRef(function GameView({ slot, muted, volume, zoom, phone
       if (e.channel !== 'pm-tap') return;
       const ev = e.args[0];
       registrarEvento(slot, ev);
+      if (ev?.tipo === 'inventario') registrarInventario(slot, ev.dados);          // mochila do treinador (qualquer tela)
       if (ev?.tipo === 'kickParceiros') atualizarParceirosKick(ev.dados);          // lista de canais parceiros da Kick
       if (ev?.tipo === 'twitchParceiros') atualizarParceirosTwitch(ev.dados);  // lista de canais parceiros da Twitch
       if (ev?.tipo === 'preload' || ev?.tipo === 'instalado') enviar();        // o jogo avisou: manda a config

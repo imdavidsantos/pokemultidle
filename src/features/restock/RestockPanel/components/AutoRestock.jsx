@@ -89,7 +89,7 @@ export default function AutoRestock({ grupos, atualizar }) {
       <b>Reabastecimento automático</b>
       {grupos.map((g) => <Linha key={g.id} g={g} atualizar={atualizar} />)}
       <small style={{ opacity: 0.7 }}>
-        {`Roda em segundo plano (confere o estoque a cada ${Math.round(INTERVALO_LISTA / 60000)} min), mesmo com este painel fechado, enquanto o app estiver aberto e a conta logada. Compra sozinho, sem confirmação. Se uma compra falhar, aquele item é desligado.`}
+        {`Roda em segundo plano (confere todos os itens a cada ${Math.round(INTERVALO_LISTA / 60000)} min, lendo a mochila que o jogo envia), em qualquer tela do jogo e com este painel fechado, enquanto o app estiver aberto e a conta logada. Compra sozinho, sem confirmação. Se uma compra falhar, aquele item é desligado.`}
       </small>
     </section>
   );
