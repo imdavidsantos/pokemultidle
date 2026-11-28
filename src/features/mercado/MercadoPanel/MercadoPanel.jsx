@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useSniperStatus } from '../../sniper/sniperStore';
 import { pedirMercado, useMercado, useMercadoTodos } from '../mercadoStore';
 import {
-  BANDAS_NOTA, ORDENS, corPotencia, TIPOS_POKEMON, buscar, buscarSufixo, categoriasDoCatalogo, faixaNota, fmtDecimal, fmtGemas, fmtOuro, fmtPreco, norm, rotuloCategoria, rotuloItem,
+  BANDAS_NOTA, ORDENS, pedidoDeOrdem, corPotencia, TIPOS_POKEMON, buscar, buscarSufixo, categoriasDoCatalogo, faixaNota, fmtDecimal, fmtGemas, fmtOuro, fmtPreco, norm, rotuloCategoria, rotuloItem,
   textoIdade, textoLiberacao, urlIcone, vivo,
 } from '../mercadoUtils';
 import '../../sniper/SniperPanel/SniperPanel.css';   // mesma aparência do Sniper (moldura, abas, botões, inputs)
@@ -245,11 +245,11 @@ export default function MercadoPanel({ accounts, onClose }) {
         if (especie || !agregar) {
           // anúncios de verdade (mesmo pedido que o sniper usa), acrescido dos filtros
           pedirMercado(slotAtual, {
-            ...f, t: 'market.listar', tipo: 'pokemon', ordem, moeda: moedaPoke, criterios: [], elemento: elementos[0] || '',
+            ...f, t: 'market.listar', tipo: 'pokemon', ...pedidoDeOrdem(ordem), moeda: moedaPoke, elemento: elementos[0] || '',
             busca: especie ? especie.nome : buscaAplicada, speciesId: especie ? especie.speciesId : undefined,
           });
         } else {
-          pedirMercado(slotAtual, { ...PEDIDO_ESPECIES, ...f, ordem, moeda: moedaPoke });
+          pedirMercado(slotAtual, { ...PEDIDO_ESPECIES, ...f, ...pedidoDeOrdem(ordem), moeda: moedaPoke });
         }
       } else {
         const lista = categoria ? [categoria] : (categorias.length ? categorias : ['']);
@@ -286,7 +286,7 @@ export default function MercadoPanel({ accounts, onClose }) {
     const d = merc.pokemons;
     if (!d || d.em < desde || agora - d.em > 12000) return null;
     const q = norm(busca);
-    return d.linhas.filter((l) => {
+    const lista = d.linhas.filter((l) => {
       const c = l.campos || {};
       const nm = buscar(c, ['nome', 'pokemonNome']);
       if (especie) {                      // só a espécie aberta (também descarta respostas de outro pedido, como as do sniper)
@@ -300,7 +300,11 @@ export default function MercadoPanel({ accounts, onClose }) {
       }
       return true;
     });
-  }, [merc.pokemons, desde, busca, especie, nivelAplicado, agora]);
+    // O servidor já ordena ('caros' / 'baratos' / criterios ['iv']); reordenar o preço aqui é só uma garantia.
+    if (ordem === 'caros') return [...lista].sort((a, b) => (Number(b.preco) || 0) - (Number(a.preco) || 0));
+    if (ordem === 'baratos') return [...lista].sort((a, b) => (Number(a.preco) || 0) - (Number(b.preco) || 0));
+    return lista;
+  }, [merc.pokemons, desde, busca, especie, nivelAplicado, ordem, agora]);
 
   const ultimaAtualizacao = oferta ? merc.ofertas?.em : tipo === 'pokemon' ? (mostraAnuncios ? merc.pokemons?.em : merc.especies?.em)
     : Math.max(0, ...itens.map((i) => i.lin?.em || 0)) || null;

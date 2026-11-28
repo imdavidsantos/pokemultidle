@@ -64,11 +64,18 @@ export function textoLiberacao(compravelEm, agora) {
 // ---- Pokémon ----
 export const TIPOS_POKEMON = ['NORMAL', 'FIRE', 'WATER', 'ELECTRIC', 'GRASS', 'ICE', 'FIGHTING', 'POISON', 'GROUND', 'FLYING', 'PSYCHIC', 'BUG', 'ROCK', 'GHOST', 'DRAGON', 'DARK', 'STEEL', 'FAIRY'];
 
+// `ordem` e `criterios` são exatamente o que o jogo envia (capturado do market do próprio jogo):
+//   mais caro -> ordem 'caros' | mais barato -> ordem 'baratos' | maior IV -> criterios ['iv'] (com ordem 'baratos' como desempate)
 export const ORDENS = [
-  { id: 'recentes', rotulo: 'Adicionados recentemente' },
-  { id: 'menor_preco', rotulo: 'Menor preço' },
-  { id: 'maior_preco', rotulo: 'Maior preço' },
+  { id: 'recentes', rotulo: 'Adicionados recentemente', ordem: 'recentes', criterios: [] },
+  { id: 'baratos', rotulo: 'Menor preço', ordem: 'baratos', criterios: [] },
+  { id: 'caros', rotulo: 'Maior preço', ordem: 'caros', criterios: [] },
+  { id: 'iv', rotulo: 'Maior IV', ordem: 'baratos', criterios: ['iv'] },
 ];
+export const pedidoDeOrdem = (id) => {
+  const o = ORDENS.find((x) => x.id === id) || ORDENS[0];
+  return { ordem: o.ordem, criterios: o.criterios };
+};
 
 // Os anúncios chegam com os campos achatados (ficha.nome, ficha.level…). Acha o primeiro que bate com algum dos nomes (último trecho da chave).
 export function buscar(campos, nomes) {

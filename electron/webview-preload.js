@@ -44,9 +44,24 @@ function dentroDaPagina() {
   const ehGema = (m) => ['orb', 'orbs', 'gemas', 'gema', 'gems'].includes(m);
   const log = (status, dados) => emitir('log', Object.assign({ t: Date.now(), status }, dados));
 
-  function enviar(obj) {
+  // Fila dos pedidos de leitura do mercado enviados ao jogo. O jogo responde com pacotes "market" sem dizer a qual pedido
+  // pertencem, então guardamos QUEM pediu ('sniper' ou 'rmt') e casamos cada resposta com o pedido mais antigo do mesmo tipo.
+  // Assim a resposta do sniper não vai para a aba RMT e a resposta do RMT não vai para o sniper.
+  const TIPO_PEDIDO_MERCADO = { 'market.itens': 'itens', 'market.item': 'item', 'market.especies': 'especies', 'market.listar': 'listar' };
+  const VALIDADE_PEDIDO = 6000;           // pedido sem resposta depois disso é descartado (resposta perdida não desalinha a fila)
+  const pedidosMercado = [];              // { tipo, origem, itemId, t }
+
+  function enviar(obj, origem) {
     if (!jogoWs || jogoWs.readyState !== 1) return false;
-    try { originalSend.call(jogoWs, JSON.stringify(obj)); return true; } catch (_) { return false; }
+    try {
+      originalSend.call(jogoWs, JSON.stringify(obj));
+      const tipo = obj && TIPO_PEDIDO_MERCADO[obj.t];
+      if (tipo) {
+        pedidosMercado.push({ tipo, origem: origem || 'sniper', itemId: Number(obj.itemId) || 0, t: Date.now() });
+        if (pedidosMercado.length > 60) pedidosMercado.splice(0, pedidosMercado.length - 60);
+      }
+      return true;
+    } catch (_) { return false; }
   }
 
   // ---------- leitura do WebSocket ----------
@@ -280,15 +295,28 @@ function dentroDaPagina() {
 
   // ---------- painel RMT (leitura do mercado) ----------
   // O app (painel RMT) manda pedidos de LEITURA; aqui só deixamos passar os 3 que o próprio jogo usa para mostrar o mercado.
-  // Enquanto chegarem pedidos (o painel pede a cada 3 s), as respostas também seguem para o app; fechou o painel, para sozinho.
+  // Só as respostas dos pedidos feitos pelo painel RMT seguem para o app (origem 'rmt'); fechou o painel, não há mais pedidos e para sozinho.
   const PEDIDOS_RMT = { 'market.itens': 1, 'market.item': 1, 'market.especies': 1, 'market.listar': 1 };
-  let rmtUltimoPedido = 0;
   function pedirMercado(msg) {
     if (!msg || typeof msg !== 'object' || !PEDIDOS_RMT[msg.t]) return;
-    rmtUltimoPedido = Date.now();
-    enviar(msg);
+    enviar(msg, 'rmt');
   }
-  const rmtAtivo = () => Date.now() - rmtUltimoPedido < 10000;
+  // Descobre de quem é uma resposta "market": 'rmt', 'sniper' ou 'jogo' (pacote que ninguém pediu, ex.: a própria tela do jogo).
+  function origemDaResposta(p) {
+    const aba = String(p.aba || '');
+    let tipo = null;
+    if (aba === 'itens') tipo = 'itens';
+    else if (aba === 'item') tipo = 'item';
+    else if (aba === 'especies') tipo = 'especies';
+    else if (!aba.startsWith('historico') && aba !== 'meus' && aba !== 'cancelado' && (Array.isArray(p.anuncios) || Array.isArray(p.linhas))) tipo = 'listar';
+    if (!tipo) return 'jogo';
+    const agora = Date.now();
+    for (let i = pedidosMercado.length - 1; i >= 0; i--) if (agora - pedidosMercado[i].t > VALIDADE_PEDIDO) pedidosMercado.splice(i, 1);
+    const itemId = tipo === 'item' ? Number(p.itemId) || 0 : 0;
+    const i = pedidosMercado.findIndex((x) => x.tipo === tipo && (!itemId || !x.itemId || x.itemId === itemId));
+    if (i < 0) return 'jogo';
+    return pedidosMercado.splice(i, 1)[0].origem;
+  }
   // resumo por espécie: acha a lista (array de objetos com speciesId) em qualquer campo do pacote
   function acharEspecies(p) {
     const candidatos = [p];
@@ -421,8 +449,9 @@ function dentroDaPagina() {
     }
 
     if (p.t === 'market') {
-      if (rmtAtivo()) encaminharMercado(p);
-      tratarMercado(p);
+      const origem = origemDaResposta(p);
+      if (origem === 'rmt') encaminharMercado(p);   // resposta de um pedido da aba RMT: só o painel usa
+      else tratarMercado(p);                        // resposta do sniper (ou pacote do próprio jogo): só o sniper usa
     }
   }
 
