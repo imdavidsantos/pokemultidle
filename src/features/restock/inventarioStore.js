@@ -12,6 +12,8 @@ const iconeBola = (nome) => {
   const nm = String(nome || '').toLowerCase().replace(/\s*ball$/, '').trim().replace(/\s+/g, '-');
   return nm ? `${ORIGEM}/assets/site/assets/ui/ball-${nm}.png` : null;
 };
+// O items.json aponta para /assets/markitems/x.png, mas o jogo serve esses arquivos em /assets/site/assets/markitems/x.png
+const corrigirIcone = (url) => (url ? url.replace(/^(https?:\/\/[^/]+)\/assets\/(markitems|ui)\//, '$1/assets/site/assets/$2/') : url);
 const iconeMarket = (nome) => (nome && !/^Item #/.test(nome)
   ? `${ORIGEM}/assets/site/assets/markitems/${String(nome).toLowerCase().trim().replace(/\s+/g, '_')}.png`
   : null);
@@ -70,7 +72,7 @@ export function listarDoSocket(slot) {
       id: `i${id}`,
       nome,
       qtd,
-      icone: inv.nomes[id]?.icone || iconeMarket(nome),
+      icone: corrigirIcone(inv.nomes[id]?.icone) || iconeMarket(nome),
       preco: p?.unit ?? null,
       moeda: p?.moeda ?? 'ouro',
       compravel: p?.unit != null || grupo != null,
